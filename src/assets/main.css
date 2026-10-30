@@ -28,10 +28,10 @@ h2 { font-size: 15px; line-height: 22px; font-weight: 600; }
 .shell { height: 100dvh; display: flex; flex-direction: column; }
 .top { flex: none; background: var(--charcoal); color: #fff; padding: 0 24px; }
 .top :focus-visible { outline-color: var(--lime); }
-.top-row { position: relative; display: flex; align-items: center; gap: 20px; min-height: 70px; }
-.brand { color: #fff; font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.04em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
+.top-row { position: relative; display: flex; align-items: center; gap: 16px; min-height: 56px; }
+.brand { color: #fff; font-size: 24px; font-weight: 700; line-height: 1; letter-spacing: -.04em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
 .brand::after { content: ' /'; color: var(--lime); font-weight: 400; }
-.header-title { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 20px; }
+.header-title { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 18px; line-height: 24px; }
 .connection-cluster { display: flex; align-items: center; gap: 16px; margin-left: auto; min-width: 0; }
 .connect { display: flex; align-items: center; gap: 8px; margin: 0; min-width: 0; }
 .connect label { white-space: nowrap; font-size: 12px; }
@@ -44,7 +44,7 @@ h2 { font-size: 15px; line-height: 22px; font-weight: 600; }
 .robot-name { font-weight: 600; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
 .connection-error { padding: 0; border: 0; background: transparent; color: #ffb4bb; min-width: 24px; height: 28px; font-size: 18px; }
 .menu-btn { display: none; }
-.tabs { display: flex; align-items: stretch; min-height: 44px; gap: 0; margin: 0 -24px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--panel-line); }
+.tabs { display: flex; align-items: stretch; min-height: 36px; gap: 0; margin: 0 -24px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--panel-line); }
 .tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 140px; padding: 0 20px; color: var(--ink); text-decoration: none; border-right: 1px solid var(--panel-line); font-weight: 600; }
 .tabs a:first-child { border-left: 1px solid var(--panel-line); }
 .tabs a[aria-current="page"] { background: var(--lime); color: var(--lime-ink); }
@@ -133,13 +133,13 @@ dialog { position: fixed; inset: 0; margin: auto; border: 1px solid var(--line);
 .studio-details { margin-top: 20px; border-top: 1px solid var(--line); }.studio-details > summary { cursor: pointer; padding: 12px 0; color: var(--muted); font-weight: 500; }.studio-details .chips { margin-bottom: 12px; }.settings-form { max-width: 640px; }.replacement-preview { max-width: 640px; margin-top: 20px; }.term-form { display: flex; gap: 8px; margin-bottom: 12px; }.term-form input { flex: 1; }.vocabulary-row { max-width: 760px; padding: 6px 0; }
 @media (prefers-reduced-motion: reduce) { .sensor-flash { animation: none; opacity: 1; } }
 @media (max-width: 1100px) {
-  .top-row { flex-wrap: wrap; padding: 10px 0; gap: 10px 20px; }.header-title { position: static; transform: none; margin-left: auto; font-size: 18px; }.connection-cluster { flex-basis: 100%; justify-content: flex-end; }.tabs a { flex: 1; min-width: 0; padding: 0 10px; }
+  .top-row { flex-wrap: wrap; padding: 4px 0; gap: 8px 16px; }.header-title { position: static; transform: none; margin-left: auto; font-size: 16px; }.connection-cluster { flex-basis: 100%; justify-content: flex-end; }.tabs a { flex: 1; min-width: 0; padding: 0 10px; }
   .dash, .robot-grid, .setups, .interact { grid-template-columns: 1fr 1fr; }.dash > .panel:nth-child(3), .dash > .panel:nth-child(5), .interact > .panel:nth-child(3), .setups > .panel:nth-child(3) { grid-column: 1 / -1; }
   .studio, .studio.has-editor { grid-template-columns: 180px minmax(0, 1fr); }.studio.has-editor .studio-editor { position: absolute; z-index: 5; right: 0; top: 0; width: min(var(--editor-width), calc(100% - 180px)); border-left: 1px solid var(--control); box-shadow: -4px 0 16px #14232316; }.studio .editor-divider { display: none; }.content-date { display: none; }.content-row { grid-template-columns: 20px minmax(0, 1fr) 30px; }
   .speech-panel { flex-direction: column; align-items: stretch; }.speech-form { flex-wrap: wrap; }.speech-form input { flex-basis: 50%; }
 }
 @media (max-width: 760px) {
-  .top { padding: 0 16px; }.top-row { min-height: 56px; gap: 10px; }.brand { font-size: 23px; }.header-title { font-size: 16px; }.menu-btn { display: inline-flex; align-items: center; }.tabs { display: none; }.connection-cluster { flex-wrap: wrap; gap: 8px; }.connect { flex: 1; }.connect input { flex: 1; width: 0; }.connect label { display: none; }.top .btn { min-width: 0; }.status { padding-left: 8px; font-size: 12px; }.robot-name { display: none; }
+  .top { padding: 0 16px; }.top-row { min-height: 48px; gap: 8px; }.brand { font-size: 20px; }.header-title { font-size: 15px; }.menu-btn { display: inline-flex; align-items: center; }.tabs { display: none; }.connection-cluster { flex-wrap: wrap; gap: 8px; }.connect { flex: 1; }.connect input { flex: 1; width: 0; }.connect label { display: none; }.top .btn { min-width: 0; }.status { padding-left: 8px; font-size: 12px; }.robot-name { display: none; }
   .dash, .robot-grid, .interact, .setups, .keys { grid-template-columns: minmax(0, 1fr); }.span-2, .full { grid-column: 1 / -1; }.panel { padding: 16px; }.line { grid-template-columns: 3.2rem minmax(0, 1fr); }.line .who { grid-column: 2; }.transcript { min-height: 120px; }.slot { grid-template-columns: 1fr; }
   .apply-bar { flex-wrap: wrap; padding: 8px 16px; }.dirty-note { flex-basis: 100%; }.apply-bar .btn, .apply-bar .btn-lime { flex: 1; min-width: 0; }
   .studio, .studio.has-editor { grid-template-columns: 138px minmax(0, 1fr); }.tile { min-height: 58px; padding: 10px 8px 10px 16px; }.tile strong { font-size: 13px; overflow-wrap: anywhere; }.studio-main { padding: 12px; }.studio-main .section-toolbar { top: -12px; }.studio.has-editor .studio-editor { width: 100%; }.content-row { gap: 6px; padding: 6px 2px; }.content-choice .help { font-size: 11px; }.studio .toolbar-actions { margin-left: 0; flex-wrap: wrap; }.table { display: block; overflow-x: auto; }.tts-table { min-width: 0; }.term-form { flex-wrap: wrap; }.term-form input { width: 100%; flex-basis: 100%; }.check-row { grid-template-columns: 18px minmax(0, 1fr); }.check-row > button { grid-column: 2; }
