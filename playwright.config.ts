@@ -19,7 +19,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `${process.env.NAO_FAIR_TEST_PYTHON || "../nao-fair-server/.venv/bin/python"} e2e/start-server.py`,
+      command: `"${process.env.NAO_FAIR_TEST_PYTHON || (process.platform === "win32" ? "../nao-fair-server/.venv/Scripts/python.exe" : "../nao-fair-server/.venv/bin/python")}" e2e/start-server.py`,
       url: `${apiUrl}/api/robot/status`,
       reuseExistingServer: false,
       timeout: 30_000,

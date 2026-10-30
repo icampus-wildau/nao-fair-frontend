@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: nao-fair-frontend
+      - uses: actions/checkout@v5
+        with:
+          repository: icampus-wildau/nao-fair-server
+          path: nao-fair-server
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: nao-fair-frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --extra dev
+        working-directory: nao-fair-server
+      - run: npm ci
+        working-directory: nao-fair-frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: nao-fair-frontend
+      - run: npm run test:e2e
+        working-directory: nao-fair-frontend

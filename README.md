@@ -2,31 +2,37 @@
 
 Deutsche Bedienkonsole für einen NAO am Messestand.
 
-## Start
+## Installation und Start
 
-Für den normalen Betrieb zuerst den [Server einrichten](../nao-fair-server/README.md),
-dann im übergeordneten NAO-Verzeichnis `./start-nao-fair.sh` ausführen.
-Die Konsole öffnet unter [http://127.0.0.1:8000](http://127.0.0.1:8000).
-Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig.
+Die Konsole benötigt den [NAO Fair Server](https://github.com/icampus-wildau/nao-fair-server). Die vollständige Anleitung zum Klonen beider Repositories sowie für Linux, Windows mit WSL und den Dev Container steht in der [Server-Installationsanleitung](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md). Benötigt werden Git, npm und Node.js 20.19+ oder 22.12+.
+
+Wenn der Server bereits läuft, im Frontend-Repository ausführen:
+
+```bash
+npm ci
+npm run dev
+```
+
+Die Konsole öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig. Für den Betrieb unter Port 8000 `npm run build` ausführen; der Server muss das erzeugte `dist`-Verzeichnis lesen können.
 
 Unter **System → Tests** testet **Mikrofontest starten** die übernommene Pipeline
 ohne NAO, mit Transkript, Eingangspegel und Browser-Sprachausgabe. Das verwendete
 Setup und der Konfigurationsstand stehen daneben. Ohne Roboterverbindung führt
 im Dashboard **Gespräch ohne NAO testen** direkt dorthin. Das Öffnen der Tests
 startet das Mikrofon noch nicht.
-Voraussetzungen sind die [Browser-Pipeline-Pakete des Servers](../nao-fair-server/README.md#test-the-conversation-without-a-nao),
+Voraussetzungen sind die [Browser-Pipeline-Pakete des Servers](https://github.com/icampus-wildau/nao-fair-server#test-the-conversation-without-a-nao),
 die benötigten API-Schlüssel und Mikrofonfreigabe über localhost oder HTTPS.
 **Test beenden** oder das Verlassen des Testbereichs gibt das Mikrofon frei.
 Das Dashboard zeigt das Roboter-Gespräch ohne Audioquellen-Auswahl und ohne
 Transkript-Suche; Kopieren und Export bleiben im Transkript-Menü verfügbar.
 
 Für die Entwicklung nach der Server-Einrichtung zwei Terminals öffnen,
-jeweils im übergeordneten NAO-Verzeichnis:
+jeweils im gemeinsamen Verzeichnis der beiden Checkouts:
 
 ```bash
 # Terminal 1: Backend
 cd nao-fair-server
-.venv/bin/python -m nao_fair
+uv run nao-fair
 ```
 
 ```bash
@@ -42,7 +48,7 @@ leitet `/api` einschließlich WebSocket zum Backend auf Port 8000 weiter.
 das der Fair-Server beim nächsten Start automatisch ausliefert.
 
 `npm run dev` und `npm run build` laufen auf dem Host, auch wenn der Server im
-[Dev Container](../nao-fair-server/INSTALL.md) läuft. Der Container teilt das
+[Dev Container](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md) läuft. Der Container teilt das
 Host-Netz, daher bleibt das Proxy-Ziel `127.0.0.1:8000`.
 
 Beenden mit **Strg+C** im jeweiligen Terminal. Backend-Codeänderungen benötigen
@@ -65,7 +71,12 @@ Schlüssel oder Daten des Bedieners. Er ist ausschließlich Teil der Tests.
 Benötigt werden die Python-Umgebung des benachbarten `nao-fair-server` und ein
 Chromium-Browser. Installiertes Chromium oder Brave wird automatisch erkannt;
 alternativ `CHROME_PATH` setzen oder `npx playwright install chromium` ausführen.
-`NAO_FAIR_TEST_PYTHON` kann den Python-Pfad überschreiben.
+`NAO_FAIR_TEST_PYTHON` kann den Python-Pfad überschreiben. Standardmäßig wird auf Windows `.venv/Scripts/python.exe` und auf Linux `.venv/bin/python` im benachbarten Server-Checkout verwendet. Für ein Backend in WSL die Browserprüfung ebenfalls in WSL ausführen. Beispiel für eine andere Windows-Umgebung in PowerShell:
+
+```powershell
+$env:NAO_FAIR_TEST_PYTHON = "C:\nao-fair\nao-fair-server\.venv\Scripts\python.exe"
+npm run test:e2e
+```
 
 Geprüft werden Offline-Bearbeitung, Übernehmen/Zurücksetzen, Presets und Setups,
 Schlüssel ohne Rückgabe des Geheimnisses sowie Zustände, Transkript und Sensoren
