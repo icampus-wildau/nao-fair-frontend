@@ -38,6 +38,24 @@ export function presetPayload(kind: PresetKind, robot: RobotDraft | null, llm: L
   if (kind === 'stt_vocabulary') return { ...stt, terms: llm.stt_vocabulary }
   return { ...stt, llm_model: llm.llm_model, temperature: llm.temperature, max_tokens: llm.max_tokens }
 }
+export function presetSelectionLabel(preset: Pick<Preset, 'kind' | 'name' | 'payload'> | null | undefined, library: readonly { id: string; name: string }[]): string {
+  if (!preset) return '—'
+  const named = (id: unknown) => typeof id === 'string' && id ? library.find(item => item.id === id)?.name || preset.name : null
+  if (preset.kind === 'system_prompt' || preset.kind === 'local_context' || preset.kind === 'personality') return named(preset.payload.content_id) ?? '—'
+  if (preset.kind === 'knowledge_bundle') {
+    const ids = Array.isArray(preset.payload.content_ids) ? preset.payload.content_ids : []
+    return ids.map(named).filter((name): name is string => Boolean(name)).join(', ') || '—'
+  }
+  if (preset.kind === 'llm') return typeof preset.payload.llm_model === 'string' && preset.payload.llm_model ? preset.payload.llm_model : preset.name
+  if (preset.kind === 'stt_vocabulary') return countLabel(preset.payload.terms, 'Begriff', 'Begriffe', preset.name)
+  if (preset.kind === 'tts_replacements') return countLabel(preset.payload.replacements, 'Regel', 'Regeln', preset.name)
+  if (preset.kind === 'interaction_mappings') return countLabel(preset.payload.triggers && typeof preset.payload.triggers === 'object' ? Object.keys(preset.payload.triggers) : null, 'Zuordnung', 'Zuordnungen', preset.name)
+  return preset.name
+}
+function countLabel(items: unknown, one: string, many: string, fallback: string) {
+  if (!Array.isArray(items)) return fallback
+  return items.length === 1 ? `1 ${one}` : `${items.length} ${many}`
+}
 export function textStats(text: string) { return { words: text.trim().match(/\S+/gu)?.length ?? 0, tokens: Math.ceil([...text].length / 4) } }
 export function searchExcerpt(text: string, needle: string): string {
   if (!needle.trim()) return ''

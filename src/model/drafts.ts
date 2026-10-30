@@ -125,6 +125,16 @@ export function timingRange(
   return { min: fallback.min, max: fallback.max, step: fallback.step ?? 0.1 }
 }
 
+export function ttsOverlapNotes(entries: TtsReplacement[]): string[] {
+  const enabled = entries.map((row, index) => ({ ...row, index })).filter((row) => row.enabled && row.source.trim())
+  const lines: string[] = []
+  for (let i = 0; i < enabled.length; i++) for (let j = i + 1; j < enabled.length; j++) {
+    const a = enabled[i]!, b = enabled[j]!
+    if (a.source.includes(b.source) || b.source.includes(a.source) || a.replacement.includes(b.source)) lines.push(`Priorität ${a.index + 1} (${a.source}) kann Priorität ${b.index + 1} (${b.source}) beeinflussen.`)
+  }
+  return lines
+}
+
 export function previewReplacements(text: string, entries: TtsReplacement[]): string {
   let out = text
   for (const entry of entries) {
@@ -136,6 +146,14 @@ export function previewReplacements(text: string, entries: TtsReplacement[]): st
     out = out.replace(pattern, () => entry.replacement)
   }
   return out
+}
+
+export function highlightReplacements(text: string, entries: TtsReplacement[]): { text: string; highlight: boolean }[] {
+  const result = previewReplacements(text, entries)
+  const replacements = entries.filter((row) => row.enabled && row.replacement).map((row) => row.replacement).sort((a, b) => b.length - a.length)
+  if (!result || !replacements.length) return [{ text: result, highlight: false }]
+  const pattern = new RegExp(`(${replacements.map((value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|")})`, "gu")
+  return result.split(pattern).filter(Boolean).map((part) => ({ text: part, highlight: replacements.includes(part) }))
 }
 
 export function ttsErrors(entries: TtsReplacement[]): string | null {

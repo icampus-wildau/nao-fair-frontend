@@ -122,7 +122,6 @@ const postures = computed(() => {
             Bewegung stoppen
           </button>
         </div>
-        <RouterLink class="linkish" to="/llm?abschnitt=presets">Stimm-Presets verwalten</RouterLink>
       </article>
 
 

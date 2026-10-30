@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-test('presets are a separate first studio tab and System includes readiness and keys', async ({ page }) => {
+test('LLM Studio opens on content sections and System includes readiness and keys', async ({ page }) => {
   await page.goto('/llm')
-  await expect(page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button').first()).toContainText('Presets')
-  await expect(page.locator('.preset-details')).toHaveCount(0)
-  await page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: 'Presets' }).click()
-  await expect(page.getByRole('searchbox', { name: 'Presets suchen' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button').first()).toContainText('System-Prompt')
+  await expect(page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: 'Presets' })).toHaveCount(0)
   await page.getByRole('link', { name: 'System', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Betriebsbereitschaft' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'OpenAI', exact: true })).toBeVisible()
@@ -137,8 +135,9 @@ test('active setup deviations are shown only through an info dialog', async ({ p
   await page.getByRole('button', { name: 'Setup-Abweichungen anzeigen', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Setup-Abweichungen anzeigen' })).toContainText('Lautstärke')
   await page.getByRole('dialog').getByRole('button', { name: 'Schließen', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Setup wählen', exact: true }).selectOption(setup.id)
-  await page.getByRole('button', { name: 'Aktivieren', exact: true }).click()
+  await page.goto('/setups')
+  await page.getByRole('button', { name: setup.name }).click()
+  await page.getByRole('button', { name: 'Setup aktivieren', exact: true }).click()
   await expect(page.locator('.setup-status')).toContainText('Aktiv')
 })
 
@@ -163,18 +162,6 @@ test('sensor identification is explicit and dashboard transcripts export all lin
 })
 
 
-test('loaded matching presets can be combined into a new setup from the global preset tab', async ({ page, request }) => {
-  const applied = (await (await request.get('/api/config/applied')).json()).applied
-  const preset = await (await request.post('/api/presets', { data: { kind: 'system_prompt', name: 'Preset für Setup-Kombination', payload: { content_id: applied.system_prompt_id } } })).json()
-  await page.goto('/llm?abschnitt=presets')
-  await page.getByRole('searchbox', { name: 'Presets suchen' }).fill(preset.name)
-  await expect(page.locator('.preset-row .applied-marker')).toHaveText('Übernommen')
-  await page.getByRole('button', { name: `${preset.name} laden`, exact: true }).click()
-  await page.getByRole('button', { name: 'Als Setup kombinieren', exact: true }).click()
-  await expect(page).toHaveURL(/\/setups$/)
-  await expect(page.getByRole('combobox', { name: 'System-Prompt', exact: true })).toHaveValue(preset.id)
-  await request.delete(`/api/presets/${preset.id}`)
-})
 
 
 test('changing TTS priority keeps the alphabetic row and focused rule stable', async ({ page }) => {

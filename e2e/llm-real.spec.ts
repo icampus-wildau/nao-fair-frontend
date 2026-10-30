@@ -45,7 +45,7 @@ test('Markdown draft reset and text-only apply use the real offline server', asy
   await expect(page.getByRole('region', { name: 'Offene Änderungen' })).toHaveCount(0)
 })
 
-test('all LLM sections, vocabulary and component presets work without a robot', async ({ page }) => {
+test('all LLM sections and vocabulary work without a robot', async ({ page }) => {
   await page.goto('/llm')
   for (const label of ['System-Prompt', 'Hintergrundwissen', 'Örtlicher Kontext', 'Persönlichkeit', 'TTS-Ersetzungen', 'STT-Vokabular']) {
     await page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: label }).click()
@@ -65,19 +65,6 @@ test('all LLM sections, vocabulary and component presets work without a robot', 
   const state = await (await page.request.get('/api/config/applied')).json()
   expect(state.applied.stt_vocabulary).toContainEqual({ term: 'Testbegriff', enabled: true })
   expect(state.applied.tts_replacements).toContainEqual({ source: 'Testquelle', replacement: 'Testlaut', enabled: true })
-  await page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: 'Presets' }).click()
-  await page.getByRole('button', { name: 'Neues Preset', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Art', exact: true }).selectOption('tts_replacements')
-  await page.getByLabel('Neues Preset', { exact: true }).fill('TTS Testpreset')
-  await page.getByRole('button', { name: 'Preset speichern', exact: true }).last().click()
-  await expect(page.locator('.preset-row').filter({ hasText: 'TTS Testpreset' })).toBeVisible()
-  await page.getByRole('button', { name: 'Menü für Preset TTS Testpreset', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Duplizieren', exact: true }).click()
-  await expect(page.locator('.preset-row').filter({ hasText: 'TTS Testpreset Kopie' })).toBeVisible()
-  const presets = await (await page.request.get('/api/presets')).json()
-  expect(presets.find((item: { name: string }) => item.name === 'TTS Testpreset').payload.replacements).toContainEqual({ source: 'Testquelle', replacement: 'Testlaut', enabled: true })
-  await page.getByRole('combobox', { name: 'Preset-Art filtern' }).selectOption('llm')
-  await page.getByRole('button', { name: 'Standard laden', exact: true }).click()
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)

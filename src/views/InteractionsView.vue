@@ -49,7 +49,7 @@ const binding = computed(() => rows.value.some((row) => row.id === selected.valu
       </article>
       <article class="panel">
         <div class="panel-head">
-          <h2>Aktion zuordnen</h2><RouterLink class="linkish" to="/llm?abschnitt=presets">Presets verwalten</RouterLink>
+          <h2>Aktion zuordnen</h2>
           <p>{{ rows.find((row) => row.id === selected)?.label }}</p>
         </div>
         <template v-if="binding">

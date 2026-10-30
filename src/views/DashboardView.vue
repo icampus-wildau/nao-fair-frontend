@@ -1,22 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
-import { useRouter } from "vue-router"
+import { computed } from "vue"
 import SpeechComposer from "../components/SpeechComposer.vue"
 import TranscriptPanel from "../components/TranscriptPanel.vue"
 import SetupStatus from "../components/SetupStatus.vue"
-import SetupActivate from "../components/SetupActivate.vue"
 import AudioSliders from "../components/AudioSliders.vue"
 import TriggerList from "../components/TriggerList.vue"
 import { alphabetical } from "../model/operator"
 import { formatStamp } from "../model/format"
 import { MOTIONS } from "../model/triggers"
-import type { SetupSlots } from "../model/types"
 import { CONVERSATION_LABELS, type ConversationState } from "../model/types"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
-const router = useRouter()
-const setupChoice = ref("")
 const sensorRows = computed(() => store.capabilities ? alphabetical(store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)), row => row.label) : [])
 
 const states: ConversationState[] = ["idle", "listening", "thinking", "speaking"]
@@ -26,19 +21,21 @@ const lastPress = computed(() => {
   return rows.reduce((latest, row) => (row.pressNonce > latest.pressNonce ? row : latest))
 })
 
-const links: { label: string; to: string; slot: keyof SetupSlots }[] = [
-  { label: "Persönlichkeit", to: "/llm?abschnitt=personality", slot: "personality" },
-  { label: "System-Prompt", to: "/llm?abschnitt=system_prompt", slot: "system_prompt" },
-  { label: "Hintergrundwissen", to: "/llm?abschnitt=knowledge", slot: "knowledge_bundle" },
-  { label: "Stimme", to: "/roboter", slot: "voice" },
-  { label: "LLM", to: "/llm?abschnitt=model", slot: "llm" },
-]
-
-function presetName(slot: keyof SetupSlots) {
-  const id = store.activeSetup?.slots[slot]
-  if (!id) return "—"
-  return store.presets.find((preset) => preset.id === id)?.name ?? "—"
+function contentName(id: string | null | undefined) {
+  const item = store.content.find((entry) => entry.id === id)
+  return (item && (store.textDrafts[item.id]?.name || item.name)) || "—"
 }
+const cards = computed(() => {
+  const draft = store.llmDraft
+  const knowledge = draft?.knowledge_ids.length ?? 0
+  return [
+    { label: "Persönlichkeit", to: "/llm?abschnitt=personality", name: contentName(draft?.personality_id) },
+    { label: "Hintergrundwissen", to: "/llm?abschnitt=knowledge", name: knowledge === 1 ? "1 Baustein" : `${knowledge} Bausteine` },
+    { label: "Örtlicher Kontext", to: "/llm?abschnitt=local_context", name: contentName(draft?.local_context_id) },
+    { label: "System-Prompt", to: "/llm?abschnitt=system_prompt", name: contentName(draft?.system_prompt_id) },
+    { label: "LLM", to: "/llm?abschnitt=model", name: draft?.llm_model || "—" },
+  ]
+})
 
 </script>
 
@@ -124,25 +121,16 @@ function presetName(slot: keyof SetupSlots) {
       </article>
 
       <article class="panel span-2">
-        <div class="panel-head" style="display: flex; justify-content: space-between; gap: 12px; align-items: start">
-          <div>
-            <h2>Aktives Setup <SetupStatus /></h2>
-            <p v-if="store.activeSetup?.description">{{ store.activeSetup.description }}</p>
-          </div>
-          <button type="button" class="btn" @click="router.push('/setups')">Alle Setups</button>
+        <div class="panel-head sensor-heading">
+          <RouterLink class="sensor-edit" to="/setups" aria-label="Setups bearbeiten" title="Setups bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
+          <h2>Aktives Setup <SetupStatus /></h2>
+          <p class="setup-name">{{ store.activeSetup?.name || "Kein Setup aktiv" }}</p>
+          <p v-if="store.activeSetup?.description">{{ store.activeSetup.description }}</p>
         </div>
-        <p style="font-size: 18px; font-weight: 600; margin-bottom: 12px">{{ store.activeSetup?.name || "Kein Setup aktiv" }}</p>
-        <div class="actions">
-          <select v-model="setupChoice" class="inline-select" aria-label="Setup wählen" style="flex: 1">
-            <option value="">Setup wählen</option>
-            <option v-for="setup in store.setups" :key="setup.id" :value="setup.id">{{ setup.name }}</option>
-          </select>
-          <SetupActivate :id="setupChoice" label="Aktivieren" />
-        </div>
-        <div class="chips">
-          <RouterLink v-for="link in links" :key="link.label" class="chip" :to="link.to">
-            {{ link.label }}
-            <small>{{ presetName(link.slot) }}</small>
+        <div class="chips chips--compact">
+          <RouterLink v-for="card in cards" :key="card.label" class="chip" :to="card.to">
+            {{ card.label }}
+            <small>{{ card.name }}</small>
           </RouterLink>
         </div>
       </article>

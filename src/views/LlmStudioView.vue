@@ -5,26 +5,25 @@ import ApplyBar from '../components/ApplyBar.vue'
 import InfoTip from '../components/InfoTip.vue'
 import MarkdownPreview from '../components/MarkdownPreview.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
-import PresetManager from '../components/PresetManager.vue'
 import VocabularyEditor from '../components/VocabularyEditor.vue'
 import ReplacementEditor from '../components/ReplacementEditor.vue'
+import SpeechComposer from '../components/SpeechComposer.vue'
 import LibraryDeleteDialog from '../components/LibraryDeleteDialog.vue'
 import { alphabetical, textStats, searchExcerpt } from '../model/operator'
 import { localRef } from '../model/local-state'
-import { llmDraftFrom } from '../model/drafts'
-import type { ContentItem, ContentKind, PresetKind } from '../model/types'
+import { highlightReplacements, llmDraftFrom, previewReplacements, ttsOverlapNotes } from '../model/drafts'
+import type { ContentItem, ContentKind } from '../model/types'
 import { useConsole } from '../stores/console'
 
-type SectionId = 'system_prompt' | 'knowledge' | 'local_context' | 'personality' | 'tts' | 'stt' | 'model' | 'presets'
-const SECTIONS: { id: SectionId; label: string; kind: ContentKind | null; preset: PresetKind }[] = [
-  { id: 'presets', label: 'Presets', kind: null, preset: 'llm' },
-  { id: 'system_prompt', label: 'System-Prompt', kind: 'system_prompt', preset: 'system_prompt' },
-  { id: 'knowledge', label: 'Hintergrundwissen', kind: 'knowledge', preset: 'knowledge_bundle' },
-  { id: 'local_context', label: 'Örtlicher Kontext', kind: 'local_context', preset: 'local_context' },
-  { id: 'personality', label: 'Persönlichkeit', kind: 'personality', preset: 'personality' },
-  { id: 'tts', label: 'TTS-Ersetzungen', kind: null, preset: 'tts_replacements' },
-  { id: 'stt', label: 'STT-Vokabular', kind: null, preset: 'stt_vocabulary' },
-  { id: 'model', label: 'Modell / Generierung', kind: null, preset: 'llm' },
+type SectionId = 'system_prompt' | 'knowledge' | 'local_context' | 'personality' | 'tts' | 'stt' | 'model'
+const SECTIONS: { id: SectionId; label: string; kind: ContentKind | null }[] = [
+  { id: 'system_prompt', label: 'System-Prompt', kind: 'system_prompt' },
+  { id: 'knowledge', label: 'Hintergrundwissen', kind: 'knowledge' },
+  { id: 'local_context', label: 'Örtlicher Kontext', kind: 'local_context' },
+  { id: 'personality', label: 'Persönlichkeit', kind: 'personality' },
+  { id: 'tts', label: 'TTS-Ersetzungen', kind: null },
+  { id: 'stt', label: 'STT-Vokabular', kind: null },
+  { id: 'model', label: 'Modell / Generierung', kind: null },
 ]
 const store = useConsole()
 const route = useRoute()
@@ -37,6 +36,11 @@ const editorMode = localRef('studio-editor-mode', 'source')
 const lastSection = localRef<SectionId>('studio-last-section', 'system_prompt')
 const views = localRef<Partial<Record<SectionId, { filter: string; sort: string; onlySelected: boolean; scroll: number; editingId: string | null; open: boolean }>>>('studio-views', {})
 const main = ref<HTMLElement | null>(null)
+function assignScroller(el: unknown, docked: boolean) { if ((section.value === 'tts') === docked) main.value = el instanceof HTMLElement ? el : null }
+function rememberIfScroller(event: Event) { if (event.currentTarget === main.value) rememberView() }
+function spokenReplacement(phrase: string) { return previewReplacements(phrase, store.llmDraft?.tts_replacements ?? []) }
+function replacementParts(phrase: string) { return highlightReplacements(phrase, store.llmDraft?.tts_replacements ?? []) }
+const replacementOverlaps = computed(() => ttsOverlapNotes(store.llmDraft?.tts_replacements ?? []))
 const sorting = ref('name')
 const onlySelected = ref(false)
 const deleting = ref<ContentItem | null>(null)
@@ -71,13 +75,13 @@ const editMarkdown = computed({ get: () => fieldValue('markdown'), set: (value: 
 function summary(id: SectionId): string {
   const draft = store.llmDraft
   if (!draft) return '—'
-  if (id === 'presets') return `${store.presets.length} gespeichert`
   if (id === 'model') return draft.llm_model
   if (id === 'knowledge') return `${draft.knowledge_ids.length} ausgewählt`
   if (id === 'tts') return draft.tts_replacements.length === 1 ? '1 Regel' : `${draft.tts_replacements.length} Regeln`
   if (id === 'stt') return draft.stt_vocabulary.length === 1 ? '1 Begriff' : `${draft.stt_vocabulary.length} Begriffe`
   const selected = id === 'system_prompt' ? draft.system_prompt_id : id === 'local_context' ? draft.local_context_id : draft.personality_id
-  return store.content.find((item) => item.id === selected)?.name ?? 'Keine Auswahl'
+  const item = store.content.find((entry) => entry.id === selected)
+  return (item && (textDrafts.value[item.id]?.name || item.name)) || 'Keine Auswahl'
 }
 function selectedItem(item: ContentItem) {
   const draft = store.llmDraft
@@ -214,12 +218,23 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
     <ApplyBar :dirty="store.llmDirty || store.contentDirty || store.llmContentPending" :busy="busy" :can-apply="Boolean(store.screen.applied)" :current="store.llmDraft" :baseline="baseline" :extra-changes="textChanges" :message="store.llmContentPending ? 'Gespeicherte Texte sind noch nicht übernommen.' : undefined" @apply="applyStudio" @reset="resetStudio" />
     <div ref="studio" class="studio" :class="{ 'has-editor': hasEditor }" :style="{ '--editor-width': `${editorWidth}px` }">
       <nav class="subnav" aria-label="Inhalte">
-        <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': section === item.id, 'tile--presets': item.id === 'presets' }" :aria-current="section === item.id ? 'true' : undefined" @click="chooseSection(item.id)">
+        <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': section === item.id }" :aria-current="section === item.id ? 'true' : undefined" @click="chooseSection(item.id)">
           <strong>{{ item.label }}</strong><small>{{ summary(item.id) }}</small>
         </button>
       </nav>
       <article v-if="!store.llmDraft" class="panel studio-main"><h2>{{ current.label }}</h2><p class="empty">Konfiguration wird geladen …</p></article>
-      <article v-else ref="main" class="panel studio-main" @scroll.passive="rememberView">
+      <article v-else :ref="(el) => assignScroller(el, false)" class="panel studio-main" :class="{ 'has-dock': section === 'tts' }" @scroll.passive="rememberIfScroller">
+        <div v-if="section === 'tts'" class="tts-dock">
+          <SpeechComposer :utterance="spokenReplacement">
+            <template #preview="{ phrase }">
+              <div class="replacement-preview">
+                <div class="field-caption"><span>Vorschau</span><InfoTip v-if="replacementOverlaps.length" :text="replacementOverlaps.join('\n')" label="Überschneidende Regeln anzeigen" /></div>
+                <p class="replacement-result" aria-live="polite"><template v-if="String(phrase).trim()"><template v-for="(part, index) in replacementParts(String(phrase))" :key="index"><mark v-if="part.highlight">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></template><span v-else class="help">Der ersetzte Text erscheint hier.</span></p>
+              </div>
+            </template>
+          </SpeechComposer>
+        </div>
+        <div :ref="(el) => assignScroller(el, true)" class="studio-body" @scroll.passive="rememberIfScroller">
         <div class="panel-head section-toolbar">
           <h2>{{ section === 'model' ? 'Modell und Generierung' : current.label }}</h2>
           <InfoTip v-if="section === 'system_prompt'" text="Ein System-Prompt ist immer aktiv. Auswahl und Textänderungen gelten nach Übernehmen." label="System-Prompt erklären" />
@@ -254,7 +269,6 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
           </div>
         </template>
         <ReplacementEditor v-else-if="section === 'tts'" />
-        <PresetManager v-else-if="section === 'presets'" />
         <template v-else-if="section === 'stt'">
           <VocabularyEditor />
           <details class="studio-details"><summary>Gladia-Einstellungen</summary><div class="settings-form">
@@ -266,6 +280,7 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
             <label class="switch-row"><span>Audioverbesserung</span><input type="checkbox" :checked="store.llmDraft.gladia_audio_enhancer" @change="store.patchLlm({ gladia_audio_enhancer: ($event.target as HTMLInputElement).checked })" /></label>
           </div></details>
         </template>
+        </div>
       </article>
       <template v-if="hasEditor">
         <div class="editor-divider" role="separator" aria-label="Editorbreite" aria-orientation="vertical" tabindex="0" :aria-valuenow="editorWidth" aria-valuemin="300" :aria-valuemax="Math.max(300, (studio?.clientWidth ?? 1200) - 540)" @pointerdown.prevent="resize" @keydown.left.prevent="editorWidth = Math.min(editorWidth + 32, Math.max(300, (studio?.clientWidth ?? 1200) - 540))" @keydown.right.prevent="editorWidth = Math.max(300, editorWidth - 32)"></div>

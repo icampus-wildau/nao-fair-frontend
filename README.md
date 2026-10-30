@@ -4,16 +4,16 @@ Deutsche Bedienkonsole für einen NAO am Messestand.
 
 ## Installation und Start
 
-Die Konsole benötigt den [NAO Fair Server](https://github.com/icampus-wildau/nao-fair-server). Die vollständige Anleitung zum Klonen beider Repositories sowie für Linux, Windows mit WSL und den Dev Container steht in der [Server-Installationsanleitung](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md). Benötigt werden Git, npm und Node.js 20.19+ oder 22.12+.
+Die Konsole benötigt den [NAO Fair Server](https://github.com/icampus-wildau/nao-fair-server). Die vollständige Anleitung zum Klonen beider Repositories sowie für Linux, Windows mit WSL und den Dev Container steht in der [Server-Installationsanleitung](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md). Benötigt werden Git, pnpm und Node.js 20.19+ oder 22.12+.
 
 Wenn der Server bereits läuft, im Frontend-Repository ausführen:
 
 ```bash
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
-Die Konsole öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig. Für den Betrieb unter Port 8000 `npm run build` ausführen; der Server muss das erzeugte `dist`-Verzeichnis lesen können.
+Die Konsole öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig. Für den Betrieb unter Port 8000 `pnpm run build` ausführen; der Server muss das erzeugte `dist`-Verzeichnis lesen können.
 
 Unter **System → Tests** testet **Mikrofontest starten** die übernommene Pipeline
 ohne NAO, mit Transkript, Eingangspegel und Browser-Sprachausgabe. Das verwendete
@@ -38,16 +38,16 @@ uv run nao-fair
 ```bash
 # Terminal 2: Frontend
 cd nao-fair-frontend
-npm ci # Einmalig bzw. nach Änderungen der Abhängigkeiten
-npm run dev
+pnpm install --frozen-lockfile # Einmalig bzw. nach Änderungen der Abhängigkeiten
+pnpm run dev
 ```
 
 Der Entwicklungsserver unter [http://127.0.0.1:5173](http://127.0.0.1:5173)
 leitet `/api` einschließlich WebSocket zum Backend auf Port 8000 weiter.
-`NAO_FAIR_API_URL` überschreibt das Proxy-Ziel. `npm run build` erzeugt `dist/`,
+`NAO_FAIR_API_URL` überschreibt das Proxy-Ziel. `pnpm run build` erzeugt `dist/`,
 das der Fair-Server beim nächsten Start automatisch ausliefert.
 
-`npm run dev` und `npm run build` laufen auf dem Host, auch wenn der Server im
+`pnpm run dev` und `pnpm run build` laufen auf dem Host, auch wenn der Server im
 [Dev Container](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md) läuft. Der Container teilt das
 Host-Netz, daher bleibt das Proxy-Ziel `127.0.0.1:8000`.
 
@@ -58,9 +58,9 @@ Backend-Start einen bereits laufenden Server auf Port 8000 beenden.
 ## Prüfungen ohne Roboter
 
 ```bash
-npm test
-npm run typecheck
-npm run test:e2e
+pnpm test
+pnpm run typecheck
+pnpm run test:e2e
 ```
 
 Die Browserprüfung baut den Produktionsclient und startet selbst einen Testserver
@@ -70,12 +70,12 @@ Schlüssel oder Daten des Bedieners. Er ist ausschließlich Teil der Tests.
 
 Benötigt werden die Python-Umgebung des benachbarten `nao-fair-server` und ein
 Chromium-Browser. Installiertes Chromium oder Brave wird automatisch erkannt;
-alternativ `CHROME_PATH` setzen oder `npx playwright install chromium` ausführen.
+alternativ `CHROME_PATH` setzen oder `pnpm exec playwright install chromium` ausführen.
 `NAO_FAIR_TEST_PYTHON` kann den Python-Pfad überschreiben. Standardmäßig wird auf Windows `.venv/Scripts/python.exe` und auf Linux `.venv/bin/python` im benachbarten Server-Checkout verwendet. Für ein Backend in WSL die Browserprüfung ebenfalls in WSL ausführen. Beispiel für eine andere Windows-Umgebung in PowerShell:
 
 ```powershell
 $env:NAO_FAIR_TEST_PYTHON = "C:\nao-fair\nao-fair-server\.venv\Scripts\python.exe"
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 Geprüft werden Offline-Bearbeitung, Übernehmen/Zurücksetzen, Presets und Setups,
