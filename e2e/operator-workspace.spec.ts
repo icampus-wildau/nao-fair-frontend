@@ -192,6 +192,8 @@ test('changing TTS priority keeps the alphabetic row and focused rule stable', a
     await row.getByRole('textbox', { name: 'Ersetzung', exact: true }).press('Tab')
   }
   const zulu = rows.filter({ has: page.locator('input[aria-label="Quelle"][value="Zulu Priorität"]') })
+  // Finish editing first so the temporarily frozen order returns to alphabetical.
+  await page.getByRole('button', { name: 'Zeile hinzufügen', exact: true }).focus()
   const top = (await zulu.boundingBox())!.y
   for (const priority of [existing + 1, existing]) {
     await zulu.getByRole('button', { name: 'Regel nach oben', exact: true }).click()
