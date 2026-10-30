@@ -1,0 +1,21 @@
+import { expect, test } from '@playwright/test'
+
+test('voice presets can be created, loaded, updated and duplicated offline', async ({ page }) => {
+  await page.goto('/llm?abschnitt=presets')
+  await page.getByRole('button', { name: 'Neues Preset', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Art', exact: true }).selectOption('voice')
+  await page.getByLabel('Neues Preset', { exact: true }).fill('Stimme Test')
+  await page.getByRole('button', { name: 'Preset speichern', exact: true }).click()
+  await page.getByRole('button', { name: 'Stimme Test laden', exact: true }).click()
+  await page.getByRole('link', { name: 'Roboter', exact: true }).click()
+  await page.getByRole('slider', { name: 'Lautstärke', exact: true }).fill('61')
+  await expect.poll(async () => (await (await page.request.get('/api/config/applied')).json()).applied.volume).toBe(61)
+  await page.getByRole('link', { name: 'LLM Studio', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: 'Presets' }).click()
+  await page.getByRole('button', { name: 'Menü für Preset Stimme Test', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Mit aktueller Auswahl aktualisieren', exact: true }).click()
+  await expect.poll(async () => { const presets = await (await page.request.get('/api/presets')).json(); return presets.find((item: { name: string }) => item.name === 'Stimme Test')?.payload.volume }).toBe(61)
+  await page.getByRole('button', { name: 'Menü für Preset Stimme Test', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Duplizieren', exact: true }).click()
+  await expect(page.locator('.preset-row').filter({ hasText: 'Stimme Test Kopie' })).toBeVisible()
+})
