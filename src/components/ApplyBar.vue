@@ -6,7 +6,7 @@ import { useConsole } from '../stores/console'
 const props = withDefaults(defineProps<{ dirty: boolean; canApply: boolean; current: object | null; baseline: object | null; label?: string; message?: string; busy?: boolean; extraChanges?: string[]; interrupts?: boolean }>(), { interrupts: true })
 defineEmits<{ apply: []; reset: [] }>()
 const store = useConsole()
-const changes = computed(() => [...changeLines(props.baseline, props.current, [...store.content, ...store.presets]), ...(props.extraChanges ?? [])])
+const changes = computed(() => [...changeLines(props.baseline, props.current, store.content), ...(props.extraChanges ?? [])])
 </script>
 <template>
   <Teleport to="#changes-footer">

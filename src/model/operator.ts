@@ -66,4 +66,4 @@ export function searchExcerpt(text: string, needle: string): string {
 }
 export interface Change { key: string; before: unknown; after: unknown }
 export interface SystemReport { api_version: number; started_at: string; checks: Record<string, { state: string; detail: string; action: string }>; conversation_ready: boolean; setup_modified: boolean; setup_changes: Change[]; setup_error: string | null }
-export interface References { applied: boolean; presets: { id: string; name: string }[]; setups: { id: string; name: string }[] }
+export interface References { applied: boolean; scenarios: { id: string; name: string }[] }

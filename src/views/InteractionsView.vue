@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import ApplyBar from "../components/ApplyBar.vue"
 import TriggerList from "../components/TriggerList.vue"
-import { interactionsDraftFrom } from "../model/drafts"
 import { ACTION_OPTIONS, MOTIONS, type TriggerId } from "../model/triggers"
 import type { TriggerRowView } from "../model/screen"
 import { useConsole } from "../stores/console"
@@ -11,7 +9,6 @@ const store = useConsole()
 const selected = ref<TriggerId>("front_head")
 const identifySensor = ref(false)
 watch(() => store.view.triggers.map(row => row.pressNonce).join(), () => { if (!identifySensor.value) return; const touched = [...store.view.triggers].sort((a, b) => b.pressNonce - a.pressNonce)[0]; if (touched?.pressed) { selected.value = touched.id; identifySensor.value = false } })
-const baseline = computed(() => (store.screen.applied ? interactionsDraftFrom(store.screen.applied) : null))
 const rows = computed<TriggerRowView[]>(() =>
   (store.capabilities ? store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)) : []).map((row) => ({
     ...row,
@@ -26,17 +23,7 @@ const binding = computed(() => rows.value.some((row) => row.id === selected.valu
 </script>
 
 <template>
-  <section class="workspace-view" data-screen="interaktionen">
-      <ApplyBar
-        :dirty="store.interactionDirty"
-        :interrupts="false"
-        :busy="store.applying"
-        :can-apply="Boolean(store.screen.applied)"
-        :current="store.interactionDraft"
-        :baseline="baseline"
-        @apply="store.apply('interactions')"
-        @reset="store.resetDraft('interactions')"
-      />
+  <div data-screen="interaktionen">
     <p v-if="!store.interactionDraft" class="why">Die Zuordnungen erscheinen, sobald der Server eine Konfiguration schickt. Die verfügbaren Auslöser werden vom Server geladen.</p>
     <div class="interact">
       <article class="panel">
@@ -96,5 +83,5 @@ const binding = computed(() => rows.value.some((row) => row.id === selected.valu
       </article>
 
     </div>
-  </section>
+  </div>
 </template>

@@ -9,14 +9,16 @@ import VocabularyEditor from '../components/VocabularyEditor.vue'
 import ReplacementEditor from '../components/ReplacementEditor.vue'
 import SpeechComposer from '../components/SpeechComposer.vue'
 import LibraryDeleteDialog from '../components/LibraryDeleteDialog.vue'
+import InteractionsPanel from './InteractionsView.vue'
 import { alphabetical, textStats, searchExcerpt } from '../model/operator'
+import { combinationFrom, combinationFromApplied, loadWouldLoseEdits, mappingCount, sameCombination } from '../model/scenario'
 import { localRef } from '../model/local-state'
 import { highlightReplacements, llmDraftFrom, previewReplacements, ttsOverlapNotes } from '../model/drafts'
 import type { ContentItem, ContentKind } from '../model/types'
 import { useConsole } from '../stores/console'
 
-type SectionId = 'system_prompt' | 'knowledge' | 'local_context' | 'personality' | 'tts' | 'stt' | 'model'
-const SECTIONS: { id: SectionId; label: string; kind: ContentKind | null }[] = [
+type SectionId = 'scenario' | 'system_prompt' | 'knowledge' | 'local_context' | 'personality' | 'tts' | 'stt' | 'model' | 'interactions'
+const MIDDLE: { id: SectionId; label: string; kind: ContentKind | null }[] = [
   { id: 'system_prompt', label: 'System-Prompt', kind: 'system_prompt' },
   { id: 'knowledge', label: 'Hintergrundwissen', kind: 'knowledge' },
   { id: 'local_context', label: 'Örtlicher Kontext', kind: 'local_context' },
@@ -24,6 +26,11 @@ const SECTIONS: { id: SectionId; label: string; kind: ContentKind | null }[] = [
   { id: 'tts', label: 'TTS-Ersetzungen', kind: null },
   { id: 'stt', label: 'STT-Vokabular', kind: null },
   { id: 'model', label: 'Modell / Generierung', kind: null },
+]
+const SECTIONS: { id: SectionId; label: string; kind: ContentKind | null }[] = [
+  { id: 'scenario', label: 'Szenario', kind: null },
+  ...MIDDLE,
+  { id: 'interactions', label: 'Interaktionen', kind: null },
 ]
 const store = useConsole()
 const route = useRoute()
@@ -48,6 +55,20 @@ const studio = ref<HTMLElement | null>(null)
 const textDrafts = toRef(store, 'textDrafts')
 const busy = ref(false)
 const filter = ref('')
+const scenarioQuery = ref('')
+const scenarioName = ref('')
+const scenarioDescription = ref('')
+const pendingLoadId = ref<string | null>(null)
+const createOpen = ref(false)
+const createName = ref('')
+const createDescription = ref('')
+const deleteScenarioOpen = ref(false)
+const loadDialog = ref<HTMLDialogElement | null>(null)
+const createDialog = ref<HTMLDialogElement | null>(null)
+const deleteScenarioDialog = ref<HTMLDialogElement | null>(null)
+watch(loadDialog, (dialog) => dialog?.showModal(), { flush: 'post' })
+watch(createDialog, (dialog) => dialog?.showModal(), { flush: 'post' })
+watch(deleteScenarioDialog, (dialog) => dialog?.showModal(), { flush: 'post' })
 const baseline = computed(() => store.screen.applied ? llmDraftFrom(store.screen.applied) : null)
 const current = computed(() => SECTIONS.find((item) => item.id === section.value)!)
 const items = computed(() => store.content.filter((item) => item.kind === current.value.kind))
@@ -74,6 +95,11 @@ const editName = computed({ get: () => fieldValue('name'), set: (value: string) 
 const editMarkdown = computed({ get: () => fieldValue('markdown'), set: (value: string) => editField('markdown', value) })
 function summary(id: SectionId): string {
   const draft = store.llmDraft
+  if (id === 'scenario') return store.selectedScenario?.name || 'Kein Szenario'
+  if (id === 'interactions') {
+    const count = mappingCount(store.interactionDraft?.triggers ?? {})
+    return count === 1 ? '1 Zuordnung' : `${count} Zuordnungen`
+  }
   if (!draft) return '—'
   if (id === 'model') return draft.llm_model
   if (id === 'knowledge') return `${draft.knowledge_ids.length} ausgewählt`
@@ -180,18 +206,121 @@ const selectedStats = computed(() => {
   return textStats(store.content.filter(item => ids.includes(item.id)).map(item => textDrafts.value[item.id]?.markdown ?? item.markdown).join('\n\n'))
 })
 const textChanges = computed(() => dirtyTexts.value.map(([id]) => `Text: ${textDrafts.value[id]?.name || store.content.find(item => item.id === id)?.name}`))
+const filteredScenarios = computed(() => {
+  const needle = scenarioQuery.value.trim().toLocaleLowerCase('de')
+  if (!needle) return store.scenarios
+  return store.scenarios.filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase('de').includes(needle))
+})
+const scenarioCards = computed(() => {
+  const draft = store.llmDraft
+  const knowledge = draft?.knowledge_ids.length ?? 0
+  const contentName = (id: string | null | undefined) => {
+    const item = store.content.find((entry) => entry.id === id)
+    return (item && (textDrafts.value[item.id]?.name || item.name)) || '—'
+  }
+  return [
+    { label: 'Persönlichkeit', name: contentName(draft?.personality_id) },
+    { label: 'Hintergrundwissen', name: knowledge === 1 ? '1 Baustein' : `${knowledge} Bausteine` },
+    { label: 'Örtlicher Kontext', name: contentName(draft?.local_context_id) },
+    { label: 'System-Prompt', name: contentName(draft?.system_prompt_id) },
+    { label: 'LLM', name: draft?.llm_model || '—' },
+    { label: 'Interaktionen', name: mappingCount(store.interactionDraft?.triggers ?? {}) === 1 ? '1 Zuordnung' : `${mappingCount(store.interactionDraft?.triggers ?? {})} Zuordnungen` },
+  ]
+})
+const nameDirty = computed(() => {
+  const selected = store.selectedScenario
+  if (selected) return scenarioName.value !== selected.name || scenarioDescription.value !== selected.description
+  return Boolean(scenarioName.value.trim() || scenarioDescription.value.trim())
+})
+watch(nameDirty, (dirty) => {
+  store.scenarioDirty = dirty
+  store.scenarioFormDraft = dirty ? { name: scenarioName.value, description: scenarioDescription.value, selectedId: store.selectedScenarioId } : null
+})
+watch(() => store.selectedScenario, () => {
+  if (store.scenarioDirty) return
+  const selected = store.selectedScenario
+  scenarioName.value = selected?.name ?? ''
+  scenarioDescription.value = selected?.description ?? ''
+}, { flush: 'sync', immediate: true })
+watch(() => store.scenarioFormDraft, () => {
+  const saved = store.scenarioFormDraft as { name?: string; description?: string; selectedId?: string | null } | null
+  if (!saved || !store.scenarioDirty || saved.selectedId !== store.selectedScenarioId) return
+  scenarioName.value = saved.name ?? ''
+  scenarioDescription.value = saved.description ?? ''
+}, { immediate: true })
+function wouldLoseEdits() {
+  if (!store.llmDraft || !store.interactionDraft || !store.screen.applied) return false
+  const draft = combinationFrom(store.llmDraft, store.interactionDraft)
+  const selected = store.selectedScenario
+  return loadWouldLoseEdits({
+    selected: Boolean(selected),
+    sectionsMatchSelection: selected ? sameCombination(draft, (({ id, name, description, ...combination }) => combination)(selected)) : true,
+    sectionsMatchApplied: sameCombination(draft, combinationFromApplied(store.screen.applied)),
+    nameDirty: nameDirty.value,
+  })
+}
+function requestLoad(id: string) {
+  const target = store.scenarios.find((item) => item.id === id)
+  if (!target) return
+  if (wouldLoseEdits()) { pendingLoadId.value = id; return }
+  store.fillFromScenario(target)
+}
+async function updateThenLoad() {
+  const next = pendingLoadId.value
+  if (!store.selectedScenario || !next) return
+  if (!scenarioName.value.trim()) { store.feedback = { ok: false, text: 'Das Szenario braucht einen Namen.' }; return }
+  const saved = await store.saveScenario(store.selectedScenario.id, scenarioName.value.trim(), scenarioDescription.value.trim())
+  if (!saved) return
+  const target = store.scenarios.find((item) => item.id === next)
+  pendingLoadId.value = null
+  if (target) store.fillFromScenario(target)
+}
+function discardThenLoad() {
+  const next = pendingLoadId.value
+  pendingLoadId.value = null
+  const target = next ? store.scenarios.find((item) => item.id === next) : null
+  if (target) store.fillFromScenario(target)
+}
+async function updateSelected() {
+  if (!store.selectedScenario) return
+  if (!scenarioName.value.trim()) { store.feedback = { ok: false, text: 'Das Szenario braucht einen Namen.' }; return }
+  await store.saveScenario(store.selectedScenario.id, scenarioName.value.trim(), scenarioDescription.value.trim())
+}
+async function createScenario() {
+  const name = store.selectedScenario ? createName.value : scenarioName.value
+  const description = store.selectedScenario ? createDescription.value : scenarioDescription.value
+  if (!name.trim()) { store.feedback = { ok: false, text: 'Das Szenario braucht einen Namen.' }; return }
+  const saved = await store.saveScenario(null, name.trim(), description.trim())
+  if (!saved) return
+  createOpen.value = false
+  createName.value = ''
+  createDescription.value = ''
+  if (!store.selectedScenario) {
+    scenarioName.value = ''
+    scenarioDescription.value = ''
+  }
+}
+async function confirmDeleteScenario() {
+  if (!store.selectedScenario) return
+  const ok = await store.removeScenario(store.selectedScenario.id)
+  deleteScenarioOpen.value = false
+  if (ok) { scenarioName.value = ''; scenarioDescription.value = '' }
+}
 async function applyStudio() {
   if (busy.value) return
   const problem = store.validate('llm')
   if (problem) { store.feedback = { ok: false, text: problem }; return }
   if (dirtyTexts.value.some(([, draft]) => !draft.name.trim())) { store.feedback = { ok: false, text: 'Jeder Baustein braucht einen Namen.' }; return }
+  if (store.interactionDirty) { const interactionProblem = store.validate('interactions'); if (interactionProblem) { store.feedback = { ok: false, text: interactionProblem }; return } }
   busy.value = true
   try {
     for (const [id, draft] of [...dirtyTexts.value]) {
       if (!(await store.saveContent(id, { name: draft.name.trim(), markdown: draft.markdown }))) return
       delete textDrafts.value[id]
     }
-    await store.apply('llm')
+    const languageDirty = store.llmDirty || store.contentDirty || store.llmContentPending
+    if (languageDirty && !(await store.apply('llm'))) return
+    if (store.interactionDirty) await store.apply('interactions')
   } finally { busy.value = false; store.contentDirty = dirtyTexts.value.length > 0 }
 }
 async function resetStudio() {
@@ -201,6 +330,10 @@ async function resetStudio() {
     if (!(await store.resetLlmContent())) return
     for (const id of Object.keys(textDrafts.value)) delete textDrafts.value[id]
     store.resetDraft('llm')
+    store.resetDraft('interactions')
+    const selected = store.selectedScenario
+    scenarioName.value = selected?.name ?? ''
+    scenarioDescription.value = selected?.description ?? ''
   } finally { busy.value = false }
 }
 function resize(event: PointerEvent) {
@@ -215,14 +348,32 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
 </script>
 <template>
   <section class="studio-view" data-screen="llm">
-    <ApplyBar :dirty="store.llmDirty || store.contentDirty || store.llmContentPending" :busy="busy" :can-apply="Boolean(store.screen.applied)" :current="store.llmDraft" :baseline="baseline" :extra-changes="textChanges" :message="store.llmContentPending ? 'Gespeicherte Texte sind noch nicht übernommen.' : undefined" @apply="applyStudio" @reset="resetStudio" />
-    <div ref="studio" class="studio" :class="{ 'has-editor': hasEditor }" :style="{ '--editor-width': `${editorWidth}px` }">
+    <ApplyBar :dirty="store.llmDirty || store.contentDirty || store.llmContentPending || store.interactionDirty || store.scenarioDirty" :interrupts="store.llmDirty || store.contentDirty || store.llmContentPending" :busy="busy" :can-apply="Boolean(store.screen.applied)" :current="store.llmDraft" :baseline="baseline" :extra-changes="textChanges" :message="store.llmContentPending ? 'Gespeicherte Texte sind noch nicht übernommen.' : undefined" @apply="applyStudio" @reset="resetStudio" />
+    <div ref="studio" class="studio" :class="{ 'has-editor': hasEditor, 'has-scenario': section === 'scenario' }" :style="{ '--editor-width': `${editorWidth}px` }">
       <nav class="subnav" aria-label="Inhalte">
-        <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': section === item.id }" :aria-current="section === item.id ? 'true' : undefined" @click="chooseSection(item.id)">
-          <strong>{{ item.label }}</strong><small>{{ summary(item.id) }}</small>
+        <button type="button" class="tile tile-pin rule-after" :class="{ 'is-on': section === 'scenario' }" :aria-current="section === 'scenario' ? 'true' : undefined" @click="chooseSection('scenario')">
+          <strong>Szenario</strong><small>{{ summary('scenario') }}</small>
+        </button>
+        <div class="subnav-scroll">
+          <button v-for="item in MIDDLE" :key="item.id" type="button" class="tile" :class="{ 'is-on': section === item.id }" :aria-current="section === item.id ? 'true' : undefined" @click="chooseSection(item.id)">
+            <strong>{{ item.label }}</strong><small>{{ summary(item.id) }}</small>
+          </button>
+        </div>
+        <button type="button" class="tile tile-pin rule-before" :class="{ 'is-on': section === 'interactions' }" :aria-current="section === 'interactions' ? 'true' : undefined" @click="chooseSection('interactions')">
+          <strong>Interaktionen</strong><small>{{ summary('interactions') }}</small>
         </button>
       </nav>
       <article v-if="!store.llmDraft" class="panel studio-main"><h2>{{ current.label }}</h2><p class="empty">Konfiguration wird geladen …</p></article>
+      <article v-else-if="section === 'scenario'" class="panel studio-main">
+        <div class="panel-head with-action"><h2>Szenarien</h2></div>
+        <input v-model="scenarioQuery" class="search" type="search" aria-label="Szenarien suchen" placeholder="Szenario suchen" />
+        <p v-if="!filteredScenarios.length" class="empty">Kein Szenario.</p>
+        <button v-for="item in filteredScenarios" :key="item.id" type="button" class="setup-item" :class="{ 'is-on': item.id === store.selectedScenarioId }" @click="requestLoad(item.id)">
+          <strong>{{ item.name }}</strong>
+          <small v-if="item.description" class="help" style="display: block">{{ item.description }}</small>
+        </button>
+      </article>
+      <article v-else-if="section === 'interactions'" class="panel studio-main"><InteractionsPanel /></article>
       <article v-else :ref="(el) => assignScroller(el, false)" class="panel studio-main" :class="{ 'has-dock': section === 'tts' }" @scroll.passive="rememberIfScroller">
         <div v-if="section === 'tts'" class="tts-dock">
           <SpeechComposer :utterance="spokenReplacement">
@@ -293,7 +444,42 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
           <div class="editor-meta"><span class="help">{{ editing ? stats(editing) : '' }}</span><InfoTip text="Tokenzahl grob aus der Zeichenanzahl geschätzt. Änderungen gelten nach Übernehmen." label="Token-Schätzung erklären" /></div>
         </aside>
       </template>
+      <aside v-if="section === 'scenario' && store.llmDraft" class="panel studio-editor" aria-label="Szenario">
+        <div class="panel-head"><h2>{{ store.selectedScenario ? 'Szenario' : 'Neues Szenario' }}</h2></div>
+        <label class="field"><span>Name</span><input v-model="scenarioName" type="text" /></label>
+        <label class="field"><span>Beschreibung</span><input v-model="scenarioDescription" type="text" /></label>
+        <div v-for="card in scenarioCards" :key="card.label" class="summary-row"><span>{{ card.label }}</span><strong>{{ card.name }}</strong></div>
+        <p class="help">Ausgewählte Promptteile: {{ selectedStats.words }} Wörter · ca. {{ selectedStats.tokens }} Token</p>
+        <div class="actions">
+          <button v-if="store.selectedScenario" type="button" class="btn-lime" @click="updateSelected">Aktualisieren</button>
+          <button type="button" class="btn" @click="store.selectedScenario ? (createOpen = true) : createScenario()">Neu speichern</button>
+          <button type="button" class="btn-danger" :disabled="!store.selectedScenario" @click="deleteScenarioOpen = true">Löschen</button>
+        </div>
+      </aside>
     </div>
-    <LibraryDeleteDialog v-if="deleting" category="content" :item="deleting" @close="deleting = null" @deleted="deletedItem" />
+    <LibraryDeleteDialog v-if="deleting" :item="deleting" @close="deleting = null" @deleted="deletedItem" />
+    <dialog v-if="pendingLoadId" ref="loadDialog" aria-label="Szenario laden" @cancel.prevent="pendingLoadId = null">
+      <p>Beim Laden geht der aktuelle Entwurf dieser Kombination verloren.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" @click="pendingLoadId = null">Abbrechen</button>
+        <button type="button" class="btn" @click="discardThenLoad">Verwerfen &amp; Laden</button>
+        <button v-if="store.selectedScenario" type="button" class="btn-lime" @click="updateThenLoad">Aktualisieren &amp; Laden</button>
+      </div>
+    </dialog>
+    <dialog v-if="createOpen" ref="createDialog" aria-label="Neues Szenario" @cancel.prevent="createOpen = false">
+      <label class="field"><span>Name</span><input v-model="createName" type="text" /></label>
+      <label class="field"><span>Beschreibung</span><input v-model="createDescription" type="text" /></label>
+      <div class="dialog-actions">
+        <button type="button" class="btn" @click="createOpen = false">Abbrechen</button>
+        <button type="button" class="btn-lime" @click="createScenario">Neu speichern</button>
+      </div>
+    </dialog>
+    <dialog v-if="deleteScenarioOpen" ref="deleteScenarioDialog" aria-label="Szenario löschen" @cancel.prevent="deleteScenarioOpen = false">
+      <p>Szenario „{{ scenarioName }}“ löschen?</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" @click="deleteScenarioOpen = false">Abbrechen</button>
+        <button type="button" class="btn-danger" @click="confirmDeleteScenario">Löschen</button>
+      </div>
+    </dialog>
   </section>
 </template>

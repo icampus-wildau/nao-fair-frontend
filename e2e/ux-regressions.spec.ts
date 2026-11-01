@@ -31,8 +31,8 @@ test('confirming discard clears changes before the next navigation', async ({ pa
   await page.getByRole("spinbutton", { name: "Zuhör-Timeout", exact: true }).fill('13.5')
   let confirmations = 0
   page.on('dialog', async (dialog) => { confirmations++; await dialog.accept() })
-  await page.getByRole('link', { name: 'Interaktionen', exact: true }).click()
-  await expect(page).toHaveURL(/interaktionen/)
+  await page.getByRole('link', { name: 'Studio', exact: true }).click()
+  await expect(page).toHaveURL(/\/llm/)
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
   await expect(page).toHaveURL('/')
   expect(confirmations).toBe(1)

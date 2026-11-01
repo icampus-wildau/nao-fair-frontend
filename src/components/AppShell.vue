@@ -16,9 +16,7 @@ const wide = window.matchMedia('(min-width: 761px)')
 const nav = [
   { to: '/', label: 'Dashboard', title: 'Dashboard' },
   { to: '/roboter', label: 'Roboter', title: 'Robotereinstellungen' },
-  { to: '/llm', label: 'LLM Studio', title: 'LLM Studio' },
-  { to: '/interaktionen', label: 'Interaktionen', title: 'Interaktionen' },
-  { to: '/setups', label: 'Setups', title: 'Setups' },
+  { to: '/llm', label: 'Studio', title: 'Studio' },
   { to: '/system', label: 'System', title: 'System' },
 ]
 const title = computed(() => nav.find((item) => item.to === route.path)?.title ?? 'NAO Fair')

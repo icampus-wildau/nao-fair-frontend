@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import BrowserMicrophone from "../components/BrowserMicrophone.vue"
-import SetupStatus from "../components/SetupStatus.vue"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
@@ -26,7 +25,7 @@ function contentName(id: string | null) {
         <p>Offene Entwürfe werden erst nach dem Übernehmen getestet.</p>
       </div>
       <dl v-if="applied" class="test-configuration-list">
-        <div><dt>Setup</dt><dd>{{ store.activeSetup?.name || "Kein Setup aktiv" }} <SetupStatus /></dd></div>
+        <div><dt>Szenario</dt><dd>{{ store.selectedScenario?.name || "Kein Szenario" }} <span v-for="badge in store.scenarioStatusBadges" :key="badge" class="badge">{{ badge }}</span></dd></div>
         <div><dt>Konfigurationsstand</dt><dd class="num">Revision {{ applied.revision }}</dd></div>
         <div><dt>Sprachmodell</dt><dd>{{ applied.llm_enabled ? applied.llm_model : "Ausgeschaltet" }}</dd></div>
         <div><dt>Erkennungssprache</dt><dd>{{ applied.gladia_language }}</dd></div>

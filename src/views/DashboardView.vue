@@ -2,10 +2,9 @@
 import { computed } from "vue"
 import SpeechComposer from "../components/SpeechComposer.vue"
 import TranscriptPanel from "../components/TranscriptPanel.vue"
-import SetupStatus from "../components/SetupStatus.vue"
 import AudioSliders from "../components/AudioSliders.vue"
 import TriggerList from "../components/TriggerList.vue"
-import { alphabetical } from "../model/operator"
+import { alphabetical, textStats } from "../model/operator"
 import { formatStamp } from "../model/format"
 import { MOTIONS } from "../model/triggers"
 import { CONVERSATION_LABELS, type ConversationState } from "../model/types"
@@ -25,6 +24,12 @@ function contentName(id: string | null | undefined) {
   const item = store.content.find((entry) => entry.id === id)
   return (item && (store.textDrafts[item.id]?.name || item.name)) || "—"
 }
+const promptTokens = computed(() => {
+  const draft = store.llmDraft
+  if (!draft) return null
+  const ids = [draft.system_prompt_id, draft.local_context_id, draft.personality_id, ...draft.knowledge_ids]
+  return textStats(store.content.filter((item) => ids.includes(item.id)).map((item) => store.textDrafts[item.id]?.markdown ?? item.markdown).join("\n\n"))
+})
 const cards = computed(() => {
   const draft = store.llmDraft
   const knowledge = draft?.knowledge_ids.length ?? 0
@@ -88,7 +93,7 @@ const cards = computed(() => {
 
       <article class="panel">
         <div class="panel-head sensor-heading">
-          <RouterLink class="sensor-edit" to="/interaktionen" aria-label="Sensoren und Zuordnungen bearbeiten" title="Sensoren und Zuordnungen bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
+          <RouterLink class="sensor-edit" to="/llm?abschnitt=interactions" aria-label="Sensoren und Zuordnungen bearbeiten" title="Sensoren und Zuordnungen bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
           <h2>Robotersensoren</h2>
           <p>{{ lastPress ? `Letzte Berührung: ${lastPress.label}, ${formatStamp(lastPress.pressedAt || "")}` : store.view.hardwareEnabled ? "Noch keine Berührung." : "Getrennt. Keine Berührung." }}</p>
         </div>
@@ -122,11 +127,12 @@ const cards = computed(() => {
 
       <article class="panel span-2">
         <div class="panel-head sensor-heading">
-          <RouterLink class="sensor-edit" to="/setups" aria-label="Setups bearbeiten" title="Setups bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
-          <h2>Aktives Setup <SetupStatus /></h2>
-          <p class="setup-name">{{ store.activeSetup?.name || "Kein Setup aktiv" }}</p>
-          <p v-if="store.activeSetup?.description">{{ store.activeSetup.description }}</p>
+          <RouterLink class="sensor-edit" to="/llm?abschnitt=scenario" aria-label="Szenario bearbeiten" title="Szenario bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
+          <h2>Szenario <span v-for="badge in store.scenarioStatusBadges" :key="badge" class="badge">{{ badge }}</span></h2>
+          <p class="setup-name">{{ store.selectedScenario?.name || "Kein Szenario" }}</p>
+          <p v-if="store.selectedScenario?.description">{{ store.selectedScenario.description }}</p>
         </div>
+        <p v-if="promptTokens" class="help">Ausgewählte Promptteile: {{ promptTokens.words }} Wörter · ca. {{ promptTokens.tokens }} Token</p>
         <div class="chips chips--compact">
           <RouterLink v-for="card in cards" :key="card.label" class="chip" :to="card.to">
             {{ card.label }}

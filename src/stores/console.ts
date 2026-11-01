@@ -6,7 +6,6 @@ import {
   asApplied,
   asCapabilities,
   asConnection,
-  asPresets,
   errorText,
 } from "../api/client"
 import {
@@ -26,8 +25,9 @@ import {
   type LlmDraft,
   type RobotDraft,
 } from "../model/drafts"
-import { alphabetical, PRESET_LABELS, type SystemReport } from "../model/operator"
-import { readLocal, writeLocal } from "../model/local-state"
+import { alphabetical, type SystemReport } from "../model/operator"
+import { readLocal, localRef, writeLocal } from "../model/local-state"
+import { combinationFrom, combinationFromApplied, sameCombination, scenarioBadges, type Scenario } from "../model/scenario"
 import {
   clearActivePress,
   connectionLabel,
@@ -45,28 +45,13 @@ import {
   type ConfigScreen,
   type ContentItem,
   type ContentKind,
-  type Preset,
-  type PresetKind,
   type SecretSlot,
   type SecretSlotId,
   type ServerMessage,
-  type Setup,
-  type SetupSlots,
   type TimingKey,
 } from "../model/types"
 
 const ADDRESS_KEY = "nao-fair.address"
-const EMPTY_SLOTS: SetupSlots = {
-  system_prompt: null,
-  knowledge_bundle: null,
-  local_context: null,
-  personality: null,
-  llm: null,
-  voice: null,
-  stt_vocabulary: null,
-  tts_replacements: null,
-  interaction_mappings: null,
-}
 
 function readRemembered(): string | null {
   try {
@@ -101,20 +86,20 @@ export const useConsole = defineStore("console", () => {
   const capabilities = ref<Capabilities | null>(null)
   const content = ref<ContentItem[]>([])
   const appliedContent = ref<Record<string, string> | null>(null)
-  const presets = ref<Preset[]>([])
-  const setups = ref<Setup[]>([])
+  const scenarios = ref<Scenario[]>([])
+  const selectedScenarioId = localRef<string | null>("selected-scenario", null)
   const secrets = ref<SecretSlot[] | null>(null)
   const secretsError = ref<string | null>(null)
   const libraryError = ref<string | null>(null)
   const contentDirty = ref(false)
-  const setupDirty = ref(false)
+  const scenarioDirty = ref(false)
   const pictureSeen = ref(false)
   const systemReport = ref<SystemReport | null>(null)
   const systemError = ref<string | null>(null)
   const systemLoading = ref(false)
   const backendOutdated = ref(false)
   const textDrafts = ref<Record<string, { name: string; markdown: string }>>({})
-  const setupFormDraft = ref<unknown>(null)
+  const scenarioFormDraft = ref<unknown>(null)
   const recoveryNavigation = ref(false)
   const recovery = ref<Record<string, unknown> | null>(null)
   let recoveryChecked = false
@@ -122,8 +107,6 @@ export const useConsole = defineStore("console", () => {
   const localApply = ref(false)
   const applying = ref(false)
   const audioState = ref<Record<"volume" | "speech_speed", "" | "saving" | "saved" | "error">>({ volume: "", speech_speed: "" })
-  const loadedPreset = ref<Partial<Record<PresetKind, string>>>({})
-  const queuedSetup = ref<SetupSlots | null>(null)
   let socket: WebSocket | null = null
   let socketTimer = 0
   let started = false
@@ -169,7 +152,20 @@ export const useConsole = defineStore("console", () => {
     if (!applied || !interactionDraft.value) return false
     return !sameJson(interactionDraft.value, interactionsDraftFrom(applied))
   })
-  const isDirty = computed(() => robotDirty.value || llmDirty.value || llmContentPending.value || interactionDirty.value || contentDirty.value || setupDirty.value)
+  const isDirty = computed(() => robotDirty.value || llmDirty.value || llmContentPending.value || interactionDirty.value || contentDirty.value || scenarioDirty.value)
+  const selectedScenario = computed(() => scenarios.value.find((item) => item.id === selectedScenarioId.value) ?? null)
+  const sectionsMatchApplied = computed(() => {
+    const applied = screen.value.applied
+    if (!applied || !llmDraft.value || !interactionDraft.value) return false
+    return sameCombination(combinationFrom(llmDraft.value, interactionDraft.value), combinationFromApplied(applied))
+  })
+  const sectionsMatchScenario = computed(() => {
+    if (!selectedScenario.value || !llmDraft.value || !interactionDraft.value) return false
+    const { id, name, description, ...combination } = selectedScenario.value
+    void id; void name; void description
+    return sameCombination(combinationFrom(llmDraft.value, interactionDraft.value), combination)
+  })
+  const scenarioStatusBadges = computed(() => scenarioBadges(Boolean(selectedScenario.value), sectionsMatchScenario.value && !scenarioDirty.value, sectionsMatchApplied.value && !contentDirty.value && !llmContentPending.value))
 
   function setFeedback(ok: boolean, text: string) {
     feedback.value = { ok, text }
@@ -316,19 +312,19 @@ export const useConsole = defineStore("console", () => {
     if (saved.llm && llmDraft.value) llmDraft.value = { ...llmDraft.value, ...saved.llm as LlmDraft }
     if (saved.interactions) interactionDraft.value = saved.interactions as InteractionsDraft
     if (saved.texts) textDrafts.value = saved.texts as typeof textDrafts.value
-    if (saved.setup) setupFormDraft.value = saved.setup
+    if (saved.scenario) scenarioFormDraft.value = saved.scenario
     contentDirty.value = Object.keys(textDrafts.value).length > 0
-    setupDirty.value = Boolean(saved.setup)
+    scenarioDirty.value = Boolean(saved.scenario)
     recovery.value = null
     recoveryNavigation.value = true
     return typeof saved.path === "string" ? saved.path : "/llm"
   }
   function dismissRecovery() { recovery.value = null; writeLocal("draft-backup", null) }
   watch(() => screen.value.applied, checkRecovery)
-  watch([robotDraft, llmDraft, interactionDraft, textDrafts, setupFormDraft, isDirty, draftBackupEnabled], () => {
+  watch([robotDraft, llmDraft, interactionDraft, textDrafts, scenarioFormDraft, isDirty, draftBackupEnabled], () => {
     if (!recoveryChecked || recovery.value) return
     writeLocal("draft-backup-enabled", draftBackupEnabled.value)
-    writeLocal("draft-backup", draftBackupEnabled.value && isDirty.value ? { version: 1, path: location.pathname, robot: robotDirty.value ? robotDraft.value : null, llm: llmDirty.value ? llmDraft.value : null, interactions: interactionDirty.value ? interactionDraft.value : null, texts: textDrafts.value, setup: setupDirty.value ? setupFormDraft.value : null } : null)
+    writeLocal("draft-backup", draftBackupEnabled.value && isDirty.value ? { version: 1, path: location.pathname, robot: robotDirty.value ? robotDraft.value : null, llm: llmDirty.value ? llmDraft.value : null, interactions: interactionDirty.value ? interactionDraft.value : null, texts: textDrafts.value, scenario: scenarioDirty.value ? scenarioFormDraft.value : null } : null)
   }, { deep: true, flush: "post" })
 
   async function loadCapabilities() {
@@ -341,10 +337,10 @@ export const useConsole = defineStore("console", () => {
 
   async function loadLibrary() {
     try {
-      const [nextContent, nextPresets, nextSetups] = await Promise.all([api.listContent(), api.listPresets(), api.listSetups()])
+      const [nextContent, nextScenarios] = await Promise.all([api.listContent(), api.listScenarios()])
       content.value = alphabetical(nextContent, item => item.name)
-      presets.value = alphabetical(nextPresets, item => `${item.name} ${PRESET_LABELS[item.kind]}`)
-      setups.value = alphabetical(nextSetups, item => item.name)
+      scenarios.value = alphabetical(nextScenarios, item => item.name)
+      if (selectedScenarioId.value && !scenarios.value.some((item) => item.id === selectedScenarioId.value)) selectedScenarioId.value = null
       libraryError.value = null
     } catch (error) {
       libraryError.value = errorText(error)
@@ -585,9 +581,9 @@ export const useConsole = defineStore("console", () => {
     resetDraft("llm")
     resetDraft("interactions")
     textDrafts.value = {}
-    setupFormDraft.value = null
+    scenarioFormDraft.value = null
     contentDirty.value = false
-    setupDirty.value = false
+    scenarioDirty.value = false
     dismissRecovery()
     notice.value = null
     return true
@@ -728,159 +724,44 @@ export const useConsole = defineStore("console", () => {
     }
   }
 
-  async function savePreset(kind: PresetKind, name: string, payload: Record<string, unknown>, id?: string) {
+  function fillFromScenario(scenario: Scenario) {
+    if (!llmDraft.value || !interactionDraft.value) return
+    const { id, name, description, triggers, ...llm } = JSON.parse(JSON.stringify(scenario)) as Scenario
+    void name
+    void description
+    llmDraft.value = { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })) }
+    interactionDraft.value = { triggers }
+    scenarioDirty.value = false
+    scenarioFormDraft.value = null
+    selectedScenarioId.value = id
+  }
+
+  async function saveScenario(id: string | null, name: string, description: string) {
+    if (!llmDraft.value || !interactionDraft.value) return null
+    const input = { name, description, ...combinationFrom(llmDraft.value, interactionDraft.value) }
     try {
-      if (id) await api.updatePreset(id, { name, description: presets.value.find((preset) => preset.id === id)?.description ?? "", payload })
-      else {
-        const created = await api.createPreset({ kind, name, description: "", payload })
-        const preset = asPresets([created])[0]
-        if (preset) rememberPreset(kind, preset.id)
-      }
+      const saved = id ? await api.updateScenario(id, input) : await api.createScenario(input)
       await refreshAfterWrite()
-      setFeedback(true, "Preset gespeichert.")
+      scenarioDirty.value = false
+      scenarioFormDraft.value = null
+      setFeedback(true, id ? "Szenario aktualisiert." : "Szenario gespeichert.")
+      return saved
+    } catch (error) {
+      setFeedback(false, errorText(error))
+      return null
+    }
+  }
+
+  async function removeScenario(id: string) {
+    try {
+      await api.deleteScenario(id)
+      if (selectedScenarioId.value === id) selectedScenarioId.value = null
+      await refreshAfterWrite()
+      setFeedback(true, "Szenario gelöscht.")
       return true
     } catch (error) {
       setFeedback(false, errorText(error))
       return false
-    }
-  }
-
-  async function duplicatePreset(id: string) {
-    const source = presets.value.find((preset) => preset.id === id)
-    if (!source) { setFeedback(false, "Preset nicht gefunden."); return }
-    try {
-      await api.createPreset({ kind: source.kind, name: `${source.name} Kopie`, description: source.description, payload: source.payload })
-      await refreshAfterWrite()
-      setFeedback(true, "Preset dupliziert.")
-    } catch (error) { setFeedback(false, errorText(error)) }
-  }
-
-  async function removePreset(id: string, replacement?: string) {
-    try {
-      await api.deletePreset(id, replacement)
-      if (Object.values(loadedPreset.value).includes(id)) {
-        const next = { ...loadedPreset.value }
-        for (const key of Object.keys(next) as PresetKind[]) if (next[key] === id) delete next[key]
-        loadedPreset.value = next
-      }
-      await refreshAfterWrite()
-      setFeedback(true, "Preset gelöscht.")
-      return true
-    } catch (error) {
-      setFeedback(false, errorText(error))
-    }
-  }
-
-  function rememberPreset(kind: PresetKind, id: string) {
-    loadedPreset.value = { ...loadedPreset.value, [kind]: id }
-  }
-
-  function applyPreset(preset: Preset) {
-    rememberPreset(preset.kind, preset.id)
-    const payload = preset.payload
-    if (preset.kind === "voice" && robotDraft.value) {
-      robotDraft.value = { ...robotDraft.value, ...robotFields(payload) }
-      void commitAudio("volume", robotDraft.value.volume)
-      void commitAudio("speech_speed", robotDraft.value.speech_speed)
-      return
-    }
-    if (preset.kind === "interaction_mappings" && interactionDraft.value && screen.value.applied && payload.triggers && typeof payload.triggers === "object") {
-      interactionDraft.value = interactionsDraftFrom({ ...screen.value.applied, triggers: payload.triggers as Applied["triggers"] })
-      return
-    }
-    if (!llmDraft.value) return
-    if (preset.kind === "system_prompt") patchLlm({ system_prompt_id: stringOf(payload.content_id ?? payload.system_prompt_id) })
-    if (preset.kind === "knowledge_bundle") patchLlm({ knowledge_ids: stringList(payload.content_ids ?? payload.knowledge_ids) })
-    if (preset.kind === "local_context") patchLlm({ local_context_id: stringOf(payload.content_id ?? payload.local_context_id) })
-    if (preset.kind === "personality") patchLlm({ personality_id: stringOf(payload.content_id ?? payload.personality_id) })
-    if (preset.kind === "llm") {
-      patchLlm({
-        llm_model: typeof payload.llm_model === "string" ? payload.llm_model : llmDraft.value.llm_model,
-        temperature: payload.temperature === null ? null : numberOf(payload.temperature, llmDraft.value.temperature ?? 1),
-        max_tokens: payload.max_tokens === null ? null : numberOf(payload.max_tokens, llmDraft.value.max_tokens ?? 1024),
-        gladia_region: typeof payload.gladia_region === "string" ? payload.gladia_region : llmDraft.value.gladia_region,
-        gladia_language: typeof payload.gladia_language === "string" ? payload.gladia_language : llmDraft.value.gladia_language,
-        gladia_endpointing: numberOf(payload.gladia_endpointing, llmDraft.value.gladia_endpointing),
-        gladia_max_utterance_secs: numberOf(payload.gladia_max_utterance_secs, llmDraft.value.gladia_max_utterance_secs),
-        gladia_audio_enhancer: typeof payload.gladia_audio_enhancer === "boolean" ? payload.gladia_audio_enhancer : llmDraft.value.gladia_audio_enhancer,
-      })
-    }
-    if (preset.kind === "tts_replacements" && Array.isArray(payload.replacements ?? payload.entries ?? payload.tts_replacements)) {
-      patchLlm({ tts_replacements: (payload.replacements ?? payload.entries ?? payload.tts_replacements) as LlmDraft["tts_replacements"] })
-    }
-    if (preset.kind === "stt_vocabulary") {
-      const terms = payload.terms ?? payload.stt_vocabulary
-      patchLlm({
-        ...(Array.isArray(terms) ? { stt_vocabulary: terms as LlmDraft["stt_vocabulary"] } : {}),
-        gladia_region: typeof payload.gladia_region === "string" ? payload.gladia_region : llmDraft.value.gladia_region,
-        gladia_language: typeof payload.gladia_language === "string" ? payload.gladia_language : llmDraft.value.gladia_language,
-        gladia_endpointing: numberOf(payload.gladia_endpointing, llmDraft.value.gladia_endpointing),
-        gladia_max_utterance_secs: numberOf(payload.gladia_max_utterance_secs, llmDraft.value.gladia_max_utterance_secs),
-        gladia_audio_enhancer: typeof payload.gladia_audio_enhancer === "boolean" ? payload.gladia_audio_enhancer : llmDraft.value.gladia_audio_enhancer,
-      })
-    }
-  }
-
-  function queueSetup(slots: SetupSlots) {
-    queuedSetup.value = slots
-  }
-
-  function takeQueuedSetup(): SetupSlots | null {
-    const slots = queuedSetup.value
-    queuedSetup.value = null
-    return slots
-  }
-
-  async function saveSetup(id: string | null, input: { name: string; description: string; slots: SetupSlots }) {
-    try {
-      if (id) await api.updateSetup(id, input)
-      else await api.createSetup(input)
-      await refreshAfterWrite()
-      setupDirty.value = false
-      setFeedback(true, "Setup gespeichert.")
-      return true
-    } catch (error) {
-      setFeedback(false, errorText(error))
-      return false
-    }
-  }
-
-  async function duplicateSetup(id: string) {
-    const source = setups.value.find((setup) => setup.id === id)
-    if (!source) { setFeedback(false, "Setup nicht gefunden."); return }
-    try {
-      await api.createSetup({ name: `${source.name} Kopie`, description: source.description, slots: source.slots })
-      await refreshAfterWrite()
-      setFeedback(true, "Setup dupliziert.")
-    } catch (error) { setFeedback(false, errorText(error)) }
-  }
-
-  async function removeSetup(id: string) {
-    try {
-      await api.deleteSetup(id)
-      await refreshAfterWrite()
-      setFeedback(true, "Setup gelöscht.")
-      return true
-    } catch (error) {
-      setFeedback(false, errorText(error))
-      return false
-    }
-  }
-
-  async function activateSetup(id: string) {
-    localApply.value = true
-    try {
-      const body = await api.activateSetup(id)
-      const next = asApplied(body)
-      if (next) {
-        ingest({ type: "config.applied", applied: next, active_setup_id: asActiveSetupId(body) ?? id })
-      } else {
-        screen.value = { ...screen.value, activeSetupId: id }
-      }
-      setFeedback(true, "Setup aktiviert.")
-    } catch (error) {
-      localApply.value = false
-      setFeedback(false, errorText(error))
     }
   }
 
@@ -909,12 +790,10 @@ export const useConsole = defineStore("console", () => {
     }
   }
 
-  const activeSetup = computed(() => setups.value.find((setup) => setup.id === screen.value.activeSetupId) ?? null)
-
   return {
     screen,
     systemReport, systemError, systemLoading, backendOutdated, loadSystem,
-    textDrafts, setupFormDraft, draftBackupEnabled, recovery, recoveryNavigation, restoreDrafts, dismissRecovery,
+    textDrafts, scenarioFormDraft, draftBackupEnabled, recovery, recoveryNavigation, restoreDrafts, dismissRecovery,
     view,
     address,
     addressError,
@@ -933,19 +812,20 @@ export const useConsole = defineStore("console", () => {
     serverLine,
     capabilities,
     content,
-    presets,
-    setups,
+    scenarios,
+    selectedScenarioId,
+    selectedScenario,
     secrets,
     secretsError,
     libraryError,
     contentDirty,
-    setupDirty,
+    scenarioDirty,
+    sectionsMatchApplied,
+    sectionsMatchScenario,
+    scenarioStatusBadges,
     isDirty,
     pictureSeen,
     applying, audioState,
-    loadedPreset,
-    activeSetup,
-    emptySlots: EMPTY_SLOTS,
     start,
     ingest,
     setAddress,
@@ -976,45 +856,10 @@ export const useConsole = defineStore("console", () => {
     saveContent,
     createContent,
     removeContent,
-    savePreset,
-    duplicatePreset,
-    removePreset,
-    applyPreset,
-    queueSetup,
-    takeQueuedSetup,
-    saveSetup,
-    duplicateSetup,
-    removeSetup,
-    activateSetup,
+    fillFromScenario,
+    saveScenario,
+    removeScenario,
     putSecret,
     removeSecret,
   }
 })
-
-function stringOf(value: unknown): string | null {
-  return typeof value === "string" && value ? value : null
-}
-
-function stringList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
-}
-
-function numberOf(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback
-}
-
-function robotFields(payload: Record<string, unknown>): Partial<RobotDraft> {
-  const patch: Partial<RobotDraft> = {}
-  if (typeof payload.volume === "number") patch.volume = payload.volume
-  if (typeof payload.speech_speed === "number") patch.speech_speed = payload.speech_speed
-  if (typeof payload.tts_language === "string") patch.tts_language = payload.tts_language
-  if (typeof payload.posture === "string") patch.posture = payload.posture
-  if (typeof payload.microphone_enabled === "boolean") patch.microphone_enabled = payload.microphone_enabled
-  if (typeof payload.stt_enabled === "boolean") patch.stt_enabled = payload.stt_enabled
-  if (typeof payload.llm_enabled === "boolean") patch.llm_enabled = payload.llm_enabled
-  if (typeof payload.listening_timeout_secs === "number") patch.listening_timeout_secs = payload.listening_timeout_secs
-  if (typeof payload.context_reset_timeout_secs === "number") patch.context_reset_timeout_secs = payload.context_reset_timeout_secs
-  if (typeof payload.thinking_timeout_secs === "number") patch.thinking_timeout_secs = payload.thinking_timeout_secs
-  if (typeof payload.unmute_delay_secs === "number") patch.unmute_delay_secs = payload.unmute_delay_secs
-  return patch
-}

@@ -29,7 +29,7 @@ test('LLM Studio opens server defaults and can edit, reset and apply without a r
       Object.assign(item, route.request().postDataJSON())
       body = item
     }
-    else if (path === '/api/presets' || path === '/api/setups') body = []
+    else if (path === '/api/presets' || path === '/api/setups' || path === '/api/scenarios') body = []
     else if (path === '/api/config/apply') {
       config = { ...config, ...route.request().postDataJSON().draft, revision: config.revision + 1 }
       body = { applied: config }

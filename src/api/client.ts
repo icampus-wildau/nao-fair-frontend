@@ -1,4 +1,5 @@
-import type { SystemReport, References, Change } from "../model/operator"
+import type { SystemReport, References } from "../model/operator"
+import type { Scenario } from "../model/scenario"
 import type {
   Applied,
   Capabilities,
@@ -184,6 +185,18 @@ export function asSetups(body: unknown): Setup[] {
   })
 }
 
+export function asScenarios(body: unknown): Scenario[] {
+  return listOf(body).flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+    const record = item as Record<string, unknown>
+    if (typeof record.id !== "string" || typeof record.llm_model !== "string" || typeof record.system_prompt_id !== "string") return []
+    if (typeof record.local_context_id !== "string" || typeof record.personality_id !== "string") return []
+    if (!Array.isArray(record.knowledge_ids) || !Array.isArray(record.tts_replacements) || !Array.isArray(record.stt_vocabulary)) return []
+    if (!record.triggers || typeof record.triggers !== "object") return []
+    return [{ ...(record as unknown as Scenario), id: record.id, name: text(record.name, "Ohne Namen"), description: text(record.description) }]
+  })
+}
+
 export function asSecrets(body: unknown): SecretSlot[] {
   const record = body && typeof body === "object" ? body as Record<string, unknown> : null
   const source = record && Array.isArray(record.slots) ? record.slots : listOf(body)
@@ -215,8 +228,7 @@ function setupBody(input: { name: string; description: string; slots: SetupSlots
 
 export const api = {
   system: (probe = false) => request<SystemReport>(`/api/system?probe=${probe}`),
-  setupPreview: (id: string) => request<{ setup_id: string; changes: Change[] }>(`/api/setups/${id}/preview`),
-  references: (category: "content" | "presets", id: string) => request<References>(`/api/${category}/${id}/references`),
+  references: (id: string) => request<References>(`/api/content/${id}/references`),
   audio: (patch: { volume?: number; speech_speed?: number }) => request<unknown>("/api/robot/audio", { method: "PATCH", body: JSON.stringify(patch) }),
   connect: (address: string) => request<unknown>("/api/robot/connect", { method: "POST", body: JSON.stringify({ address }) }),
   disconnect: () => request<unknown>("/api/robot/disconnect", { method: "POST" }),
@@ -245,6 +257,16 @@ export const api = {
   updateContent: (id: string, input: { name: string; markdown: string }) =>
     request<unknown>(`/api/content/${id}`, { method: "PUT", body: JSON.stringify(input) }),
   deleteContent: (id: string, replacement?: string) => request<unknown>(`/api/content/${id}${replacement ? `?replacement_id=${encodeURIComponent(replacement)}` : ""}`, { method: "DELETE" }),
+  listScenarios: async () => asScenarios(await request<unknown>("/api/scenarios")),
+  createScenario: async (input: Omit<Scenario, "id">) => {
+    const created = asScenarios([await request<unknown>("/api/scenarios", { method: "POST", body: JSON.stringify(input) })])
+    return created[0] ?? null
+  },
+  updateScenario: async (id: string, input: Omit<Scenario, "id">) => {
+    const updated = asScenarios([await request<unknown>(`/api/scenarios/${id}`, { method: "PUT", body: JSON.stringify(input) })])
+    return updated[0] ?? null
+  },
+  deleteScenario: (id: string) => request<unknown>(`/api/scenarios/${id}`, { method: "DELETE", body: JSON.stringify({ confirm: true }) }),
   listPresets: async () => asPresets(await request<unknown>("/api/presets")),
   createPreset: (input: { kind: PresetKind; name: string; description: string; payload: Record<string, unknown> }) =>
     request<unknown>("/api/presets", { method: "POST", body: JSON.stringify(input) }),
