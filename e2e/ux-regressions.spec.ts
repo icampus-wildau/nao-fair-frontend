@@ -27,7 +27,6 @@ test('clicking a system prompt title updates its radio selection', async ({ page
 
 test('confirming discard clears changes before the next navigation', async ({ page }) => {
   await page.goto('/roboter')
-  await page.getByText('Gesprächszeiten', { exact: true }).click()
   await page.getByRole("spinbutton", { name: "Zuhör-Timeout", exact: true }).fill('13.5')
   let confirmations = 0
   page.on('dialog', async (dialog) => { confirmations++; await dialog.accept() })
@@ -58,7 +57,6 @@ test('notifications and connection failures never change header or panel positio
 
 test('audio saves only its own field while other robot settings remain staged', async ({ page, request }) => {
   await page.goto('/roboter')
-  await page.getByText('Gesprächszeiten', { exact: true }).click()
   const original = (await (await request.get('/api/config/applied')).json()).applied
   const timeout = original.listening_timeout_secs === 11.5 ? 12.5 : 11.5
   await page.getByRole("spinbutton", { name: "Zuhör-Timeout", exact: true }).fill(String(timeout))

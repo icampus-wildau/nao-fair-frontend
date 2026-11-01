@@ -6,7 +6,6 @@ test.beforeEach(async ({ request }) => {
 
 test("robot settings apply offline, survive reload, and reset unapplied edits", async ({ page, request }) => {
   await page.goto("/roboter")
-  await page.getByText("Gesprächszeiten", { exact: true }).click()
   await expect(page.getByRole("heading", { name: "Robotereinstellungen" })).toBeVisible()
   const timing = page.getByRole("spinbutton", { name: "Zuhör-Timeout", exact: true })
   await expect(timing).toBeVisible()
@@ -21,6 +20,7 @@ test("robot settings apply offline, survive reload, and reset unapplied edits", 
   await timing.fill("12.5")
   await page.getByRole("button", { name: "Zurücksetzen", exact: true }).click()
   await expect(timing).toHaveValue(String(changed))
+  await page.getByRole("navigation", { name: "Roboterbereiche" }).getByRole("button", { name: "Bewegung" }).click()
   await expect(page.getByRole("button", { name: "Winken links", exact: true })).toBeDisabled()
 })
 
@@ -66,11 +66,11 @@ test("a scenario stores the current combination and can be renamed and deleted",
 })
 
 test("secret values stay on the server and the browser only receives status", async ({ page, request }) => {
-  await page.goto("/system")
+  await page.goto("/system?abschnitt=schluessel")
   const slot = page.locator("article").filter({ has: page.getByRole("heading", { name: "OpenAI", exact: true }) })
   await slot.getByLabel("Neuer Wert", { exact: true }).fill("test-browser-only-credential")
   await slot.getByRole("button", { name: "Setzen", exact: true }).click()
-  await expect(slot.getByText("In der Konsole gesetzt", { exact: true })).toBeVisible()
+  await expect(slot.getByText("In der NAO Fair App gesetzt", { exact: true })).toBeVisible()
   await expect(slot.getByLabel("Neuer Wert", { exact: true })).toHaveValue("")
   const response = await (await request.get("/api/secrets")).text()
   expect(response).not.toContain("test-browser-only-credential")

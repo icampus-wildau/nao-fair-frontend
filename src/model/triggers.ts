@@ -58,6 +58,17 @@ export const MOTIONS: { id: string; label: string }[] = [
 ACTION_OPTIONS.sort((a, b) => a.label.localeCompare(b.label, "de"))
 MOTIONS.sort((a, b) => a.label.localeCompare(b.label, "de"))
 
+export const AUTOSTART_INFO =
+  "Wenn aktiviert, führt der Roboter die zugeordneten Aktionen nach dem Start selbst aus, auch ohne laufende NAO Fair App. Das gilt nur für die Aktionen wie vorgefertigte Texte, die selbstständig ausführbar sind und die NAO Fair App nicht benötigen."
+
+export function autostartHint(action: string | null | undefined): string | null {
+  if (action === "start_conversation" || action === "toggle_conversation" || action === "stop_and_clear") {
+    return "Ohne NAO Fair App keine Wirkung."
+  }
+  if (action === "stop_conversation") return "Ohne NAO Fair App wird nur das Sprechen gestoppt."
+  return null
+}
+
 export function isTriggerId(value: string): value is TriggerId {
   return (TRIGGER_IDS as readonly string[]).includes(value)
 }

@@ -4,7 +4,7 @@ Deutsche Bedienkonsole für einen NAO am Messestand.
 
 ## Installation und Start
 
-Die Konsole benötigt den [NAO Fair Server](https://github.com/icampus-wildau/nao-fair-server). Die vollständige Anleitung zum Klonen beider Repositories sowie für Linux, Windows mit WSL und den Dev Container steht in der [Server-Installationsanleitung](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md). Benötigt werden Git, pnpm und Node.js 20.19+ oder 22.12+.
+Die NAO Fair App benötigt den [NAO Fair Server](https://github.com/icampus-wildau/nao-fair-server). Die vollständige Anleitung zum Klonen beider Repositories sowie für Linux, Windows mit WSL und den Dev Container steht in der [Server-Installationsanleitung](https://github.com/icampus-wildau/nao-fair-server/blob/main/INSTALL.md). Benötigt werden Git, pnpm und Node.js 20.19+ oder 22.12+.
 
 Wenn der Server bereits läuft, im Frontend-Repository ausführen:
 
@@ -13,7 +13,7 @@ pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
-Die Konsole öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig. Für den Betrieb unter Port 8000 `pnpm run build` ausführen; der Server muss das erzeugte `dist`-Verzeichnis lesen können.
+Die NAO Fair App öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig. Für den Betrieb unter Port 8000 `pnpm run build` ausführen; der Server muss das erzeugte `dist`-Verzeichnis lesen können.
 
 Unter **System → Tests** testet **Mikrofontest starten** die übernommene Pipeline
 ohne NAO, mit Transkript, Eingangspegel und Browser-Sprachausgabe. Das verwendete

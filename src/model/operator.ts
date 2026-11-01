@@ -11,7 +11,7 @@ export const FIELD_LABELS: Record<string, string> = {
   listening_timeout_secs: 'Zuhör-Timeout', context_reset_timeout_secs: 'Kontext zurücksetzen', thinking_timeout_secs: 'Antwortzeit', unmute_delay_secs: 'Mikrofon-Freigabe',
   llm_model: 'Modell', temperature: 'Temperatur', max_tokens: 'Maximale Antwort', gladia_region: 'Gladia-Region', gladia_endpointing: 'Endpunktung', gladia_max_utterance_secs: 'Maximale Äußerung',
   gladia_audio_enhancer: 'Audioverbesserung', gladia_language: 'Erkennungssprache', system_prompt_id: 'System-Prompt', knowledge_ids: 'Hintergrundwissen', local_context_id: 'Örtlicher Kontext', personality_id: 'Persönlichkeit',
-  tts_replacements: 'TTS-Ersetzungen', stt_vocabulary: 'STT-Vokabular', triggers: 'Sensorzuordnungen', name: 'Name', description: 'Beschreibung', slots: 'Preset-Auswahl',
+  tts_replacements: 'TTS-Ersetzungen', stt_vocabulary: 'STT-Vokabular', triggers: 'Sensorzuordnungen', autostart_enabled: 'Aktiviert im Autostart', name: 'Name', description: 'Beschreibung', slots: 'Preset-Auswahl',
 }
 export function valueLabel(value: unknown, library: readonly { id: string; name: string }[] = []): string {
   if (value === null || value === undefined || value === '') return '—'
@@ -27,7 +27,7 @@ export function changeLines(before: object | null, after: object | null, library
 }
 export function presetPayload(kind: PresetKind, robot: RobotDraft | null, llm: LlmDraft | null, interactions: InteractionsDraft | null): Record<string, unknown> | null {
   if (kind === 'voice') return robot ? { ...robot } : null
-  if (kind === 'interaction_mappings') return interactions ? { triggers: interactions.triggers } : null
+  if (kind === 'interaction_mappings') return interactions ? { triggers: interactions.triggers, autostart_enabled: interactions.autostart_enabled } : null
   if (!llm) return null
   if (kind === 'system_prompt') return { content_id: llm.system_prompt_id }
   if (kind === 'knowledge_bundle') return { content_ids: llm.knowledge_ids }

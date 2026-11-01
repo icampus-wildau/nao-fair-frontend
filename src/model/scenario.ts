@@ -7,10 +7,11 @@ export interface Scenario extends LlmDraft {
   name: string
   description: string
   triggers: Record<string, TriggerBinding>
+  autostart_enabled?: boolean
 }
 
 export function combinationFrom(llm: LlmDraft, interactions: InteractionsDraft): Omit<Scenario, "id" | "name" | "description"> {
-  return { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })), triggers: cloneData(interactions.triggers) }
+  return { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })), triggers: cloneData(interactions.triggers), autostart_enabled: interactions.autostart_enabled !== false }
 }
 
 function cloneData<T>(value: T): T {

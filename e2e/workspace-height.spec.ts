@@ -6,7 +6,7 @@ test.afterEach(async ({ request }) => { await request.post("/api/robot/disconnec
 test("desktop workspaces and column separators reach the bottom at different window heights", async ({ page }) => {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }, { width: 1440, height: 1200 }]) {
     await page.setViewportSize(viewport)
-    for (const [route, selector, name] of [["/", ".dash", "dashboard"], ["/system", ".system-view", "system"], ["/system?abschnitt=tests", ".system-tests", "tests"]]) {
+    for (const [route, selector, name] of [["/", ".dash", "dashboard"], ["/system", ".studio", "system"], ["/system?abschnitt=tests", ".system-tests", "tests"]]) {
       await page.goto(route!)
       await expect(page.locator(selector!)).toBeVisible()
       await expect(page.getByText("Noch keine Konfiguration", { exact: true })).toHaveCount(0)
@@ -76,7 +76,7 @@ test("long conversations scroll inside the transcript without moving the desktop
 test("short windows and stacked layouts keep the final groups reachable", async ({ page }) => {
   for (const viewport of [{ width: 1440, height: 560 }, { width: 1024, height: 768 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport)
-    for (const [route, label] of [["/", "Schnellsteuerung"], ["/system", "Gladia"], ["/system?abschnitt=tests", "Übernommene Konfiguration"]]) {
+    for (const [route, label] of [["/", "Schnellsteuerung"], ["/system?abschnitt=schluessel", "Gladia"], ["/system?abschnitt=tests", "Übernommene Konfiguration"]]) {
       await page.goto(route!)
       const lastGroup = page.getByRole("heading", { name: label!, exact: true })
       await lastGroup.scrollIntoViewIfNeeded()

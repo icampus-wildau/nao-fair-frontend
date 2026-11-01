@@ -36,6 +36,7 @@ function applied(): Applied {
     personality_id: null,
     tts_replacements: [],
     stt_vocabulary: [],
+    autostart_enabled: true,
     triggers: {
       front_head: binding("toggle_conversation"),
       middle_head: binding(null),

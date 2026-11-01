@@ -10,7 +10,7 @@ export interface Connection {
   address: string | null
   name: string | null
   failure: string | null
-  /** Set only when the server reports a bridge redial. The console never invents it. */
+  /** Set only when the server reports a bridge redial. The NAO Fair app never invents it. */
   redialing?: boolean
 }
 
@@ -68,6 +68,7 @@ export interface Applied {
   tts_replacements: TtsReplacement[]
   stt_vocabulary: SttTerm[]
   triggers: Record<TriggerId, TriggerBinding>
+  autostart_enabled: boolean
 }
 
 export interface Picture {
@@ -78,6 +79,7 @@ export interface Picture {
   transcript: TranscriptLine[]
   applied: Applied
   active_setup_id: string | null
+  autostart_synced?: boolean | null
 }
 
 export type ServerMessage =
@@ -90,6 +92,8 @@ export type ServerMessage =
   | { type: "action.completed"; action: string }
   | { type: "action.failed"; action: string; error: string }
   | { type: "connection.changed"; connection: Connection }
+  | { type: "autostart.changed"; synced: boolean | null }
+  | { type: "autostart.kept" }
 
 export interface TimingRange {
   min: number
@@ -212,7 +216,7 @@ export const SETUP_SLOT_FIELDS: { key: keyof SetupSlots; label: string; kind: Pr
 export const SECRET_STATUS_LABELS: Record<SecretStatus, string> = {
   missing: "Fehlt",
   environment: "Aus der Umgebung",
-  console: "In der Konsole gesetzt",
+  console: "In der NAO Fair App gesetzt",
 }
 
 export const NOTICE_EXTERNAL_APPLY =

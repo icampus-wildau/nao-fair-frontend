@@ -36,7 +36,7 @@ export class BrowserAudioClient {
     const generation = this.generation
     this.events.phase("starting")
     try {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error("Browser-Mikrofone benötigen HTTPS oder localhost. Bitte die Konsole lokal über http://127.0.0.1:8000 öffnen.")
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error("Browser-Mikrofone benötigen HTTPS oder localhost. Bitte die NAO Fair App lokal über http://127.0.0.1:8000 öffnen.")
       this.context = new AudioContext()
       await this.context.resume()
       if (generation !== this.generation) return

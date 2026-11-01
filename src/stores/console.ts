@@ -247,6 +247,8 @@ export const useConsole = defineStore("console", () => {
       const nextAddress = addressFromPicture(address.value, message.connection.address)
       address.value = nextAddress
       writeRemembered(nextAddress.remembered)
+    } else if (message.type === "autostart.kept") {
+      notice.value = "Übernommen. Der Roboter hat den bisherigen Autostart behalten."
     } else if (message.type === "action.failed") {
       setFeedback(false, message.error || "Der Befehl ist fehlgeschlagen.")
     } else if (message.type === "action.completed") {
@@ -310,7 +312,10 @@ export const useConsole = defineStore("console", () => {
     // Only known draft fields are restored; credentials are never part of a backup.
     if (saved.robot && robotDraft.value) robotDraft.value = { ...robotDraft.value, ...saved.robot as RobotDraft, volume: screen.value.applied!.volume, speech_speed: screen.value.applied!.speech_speed }
     if (saved.llm && llmDraft.value) llmDraft.value = { ...llmDraft.value, ...saved.llm as LlmDraft }
-    if (saved.interactions) interactionDraft.value = saved.interactions as InteractionsDraft
+    if (saved.interactions) {
+      const restored = saved.interactions as InteractionsDraft
+      interactionDraft.value = { ...restored, autostart_enabled: restored.autostart_enabled !== false }
+    }
     if (saved.texts) textDrafts.value = saved.texts as typeof textDrafts.value
     if (saved.scenario) scenarioFormDraft.value = saved.scenario
     contentDirty.value = Object.keys(textDrafts.value).length > 0
@@ -594,12 +599,18 @@ export const useConsole = defineStore("console", () => {
     llmDraft.value = { ...llmDraft.value, ...patch }
   }
 
+  function patchAutostart(enabled: boolean) {
+    if (!interactionDraft.value) return
+    interactionDraft.value = { ...interactionDraft.value, autostart_enabled: enabled }
+  }
+
   function patchTrigger(id: TriggerId, patch: Partial<InteractionsDraft["triggers"][TriggerId]>) {
     if (!interactionDraft.value) return
     const next = { ...interactionDraft.value.triggers[id], ...patch, voice: null }
     if (patch.action === "motion" && !next.motion) next.motion = "wave_left"
     if ("action" in patch && patch.action !== "motion") next.motion = null
     interactionDraft.value = {
+      ...interactionDraft.value,
       triggers: {
         ...interactionDraft.value.triggers,
         [id]: next,
@@ -726,11 +737,11 @@ export const useConsole = defineStore("console", () => {
 
   function fillFromScenario(scenario: Scenario) {
     if (!llmDraft.value || !interactionDraft.value) return
-    const { id, name, description, triggers, ...llm } = JSON.parse(JSON.stringify(scenario)) as Scenario
+    const { id, name, description, triggers, autostart_enabled, ...llm } = JSON.parse(JSON.stringify(scenario)) as Scenario
     void name
     void description
     llmDraft.value = { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })) }
-    interactionDraft.value = { triggers }
+    interactionDraft.value = { triggers, autostart_enabled: autostart_enabled !== false }
     scenarioDirty.value = false
     scenarioFormDraft.value = null
     selectedScenarioId.value = id
@@ -841,6 +852,7 @@ export const useConsole = defineStore("console", () => {
     commitAudio,
     discardChanges,
     patchLlm,
+    patchAutostart,
     patchTrigger,
     rangeFor,
     startConversation,

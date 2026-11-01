@@ -10,7 +10,7 @@ export const router = createRouter({
     { path: "/interaktionen", redirect: "/llm?abschnitt=interactions" },
     { path: "/setups", redirect: "/llm?abschnitt=scenario" },
     { path: "/system", component: () => import("./views/SystemView.vue") },
-    { path: "/schluessel", redirect: "/system" },
+    { path: "/schluessel", redirect: "/system?abschnitt=schluessel" },
   ],
 })
 

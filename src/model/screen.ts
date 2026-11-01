@@ -29,6 +29,7 @@ export interface ScreenState {
   activePresses: Partial<Record<TriggerId, true>>
   pressNonce: number
   lastAction: { action: string; ok: boolean; error: string | null } | null
+  autostartSynced: boolean | null
 }
 
 export interface TriggerRowView {
@@ -50,6 +51,7 @@ export interface ViewState {
   robotName: string | null
   failure: string | null
   connectionState: ConnectionState
+  autostartSynced: boolean | null
 }
 
 const EMPTY_CONNECTION: Connection = {
@@ -70,6 +72,7 @@ export function initialScreen(): ScreenState {
     activePresses: {},
     pressNonce: 0,
     lastAction: null,
+    autostartSynced: null,
   }
 }
 
@@ -138,6 +141,10 @@ export function reduce(state: ScreenState, message: ServerMessage): ScreenState 
       return { ...state, lastAction: { action: message.action, ok: true, error: null } }
     case "action.failed":
       return { ...state, lastAction: { action: message.action, ok: false, error: message.error } }
+    case "autostart.changed":
+      return { ...state, autostartSynced: message.synced }
+    case "autostart.kept":
+      return state
     default:
       return state
   }
@@ -166,6 +173,7 @@ export function viewOf(state: ScreenState): ViewState {
     robotName: hardwareEnabled ? state.connection.name : null,
     failure: state.connection.failure,
     connectionState: state.connection.state,
+    autostartSynced: hardwareEnabled ? state.autostartSynced : null,
   }
 }
 
@@ -188,6 +196,7 @@ function applyPicture(state: ScreenState, picture: Picture): ScreenState {
     activeSetupId: picture.active_setup_id,
     presses: {},
     activePresses: {},
+    autostartSynced: connected ? picture.autostart_synced ?? null : null,
   }
 }
 
@@ -201,6 +210,7 @@ function applyConnection(state: ScreenState, connection: Connection): ScreenStat
       transcript: [],
       presses: {},
       activePresses: {},
+      autostartSynced: null,
     }
   }
   return { ...state, connection: next }
@@ -226,6 +236,7 @@ export function normalizeApplied(applied: Applied): Applied {
     knowledge_ids: [...(applied.knowledge_ids ?? [])],
     tts_replacements: (applied.tts_replacements ?? []).map((entry) => ({ ...entry })),
     stt_vocabulary: (applied.stt_vocabulary ?? []).map((entry) => ({ ...entry })),
+    autostart_enabled: applied.autostart_enabled !== false,
     triggers,
   }
 }

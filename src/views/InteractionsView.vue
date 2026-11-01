@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import TriggerList from "../components/TriggerList.vue"
-import { ACTION_OPTIONS, MOTIONS, type TriggerId } from "../model/triggers"
+import { ACTION_OPTIONS, AUTOSTART_INFO, MOTIONS, autostartHint, type TriggerId } from "../model/triggers"
 import type { TriggerRowView } from "../model/screen"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
 const selected = ref<TriggerId>("front_head")
-const identifySensor = ref(false)
-watch(() => store.view.triggers.map(row => row.pressNonce).join(), () => { if (!identifySensor.value) return; const touched = [...store.view.triggers].sort((a, b) => b.pressNonce - a.pressNonce)[0]; if (touched?.pressed) { selected.value = touched.id; identifySensor.value = false } })
 const rows = computed<TriggerRowView[]>(() =>
   (store.capabilities ? store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)) : []).map((row) => ({
     ...row,
@@ -20,16 +18,25 @@ watch(rows, (available) => {
   if (available.length && !available.some((row) => row.id === selected.value)) selected.value = available[0]!.id
 }, { immediate: true })
 const binding = computed(() => rows.value.some((row) => row.id === selected.value) ? store.interactionDraft?.triggers[selected.value] ?? null : null)
+const hint = computed(() => autostartHint(binding.value?.action))
 </script>
 
 <template>
   <div data-screen="interaktionen">
     <p v-if="!store.interactionDraft" class="why">Die Zuordnungen erscheinen, sobald der Server eine Konfiguration schickt. Die verfügbaren Auslöser werden vom Server geladen.</p>
     <div class="interact">
+      <section v-if="store.interactionDraft || store.view.hardwareEnabled" class="panel autostart-bar" aria-label="Autostart">
+        <label v-if="store.interactionDraft" class="switch-row">
+          <span>Aktiviert im Autostart <InfoTip :text="AUTOSTART_INFO" label="Autostart erklären" /></span>
+          <input type="checkbox" aria-label="Aktiviert im Autostart" :checked="store.interactionDraft.autostart_enabled" @change="store.patchAutostart(($event.target as HTMLInputElement).checked)" />
+        </label>
+        <p v-if="store.view.hardwareEnabled && store.view.autostartSynced === true" class="why">Der Roboter hat diesen Autostart übernommen.</p>
+        <p v-else-if="store.view.hardwareEnabled && store.view.autostartSynced === false" class="why">Der Roboter hat diesen Autostart noch nicht übernommen.</p>
+        <p v-if="store.view.hardwareEnabled" class="why">Solange die NAO Fair App verbunden ist, reagieren die Tasten in der App.</p>
+      </section>
       <article class="panel">
         <div class="panel-head">
           <h2>Auslöser</h2>
-          <label class="compact-check sensor-identify"><input v-model="identifySensor" type="checkbox" />Sensor erkennen</label>
         </div>
         <TriggerList :rows="rows" selectable :selected="selected" :bindings="store.interactionDraft?.triggers" @select="selected = $event" @enable="(id, enabled) => store.patchTrigger(id, { enabled })" />
         <p v-if="!rows.length" class="empty">Keine Sensoren gemeldet.</p>
@@ -46,6 +53,7 @@ const binding = computed(() => rows.value.some((row) => row.id === selected.valu
               <option v-for="option in ACTION_OPTIONS" :key="option.label" :value="option.id ?? ''">{{ option.label }}</option>
             </select>
           </label>
+          <p v-if="hint" class="why">{{ hint }}</p>
           <label v-if="binding.action === 'speak'" class="field">
             <span>Wortlaut</span>
             <textarea :value="binding.phrase" @input="store.patchTrigger(selected, { phrase: ($event.target as HTMLTextAreaElement).value })"></textarea>

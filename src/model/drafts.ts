@@ -34,6 +34,7 @@ export interface LlmDraft {
 
 export interface InteractionsDraft {
   triggers: Record<TriggerId, TriggerBinding>
+  autostart_enabled: boolean
 }
 
 export interface AddressField {
@@ -101,7 +102,7 @@ export function llmDraftFrom(applied: Applied): LlmDraft {
 export function interactionsDraftFrom(applied: Applied): InteractionsDraft {
   const triggers = {} as Record<TriggerId, TriggerBinding>
   for (const id of TRIGGER_IDS) triggers[id] = bindingFrom(applied.triggers?.[id])
-  return { triggers }
+  return { triggers, autostart_enabled: applied.autostart_enabled !== false }
 }
 
 export function sameJson(a: unknown, b: unknown): boolean {

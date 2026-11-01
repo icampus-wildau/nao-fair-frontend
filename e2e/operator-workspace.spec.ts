@@ -7,9 +7,10 @@ test('LLM Studio opens on content sections and System includes readiness and key
   await expect(page.getByRole('navigation', { name: 'Inhalte' }).getByRole('button', { name: 'Presets' })).toHaveCount(0)
   await page.getByRole('link', { name: 'System', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Betriebsbereitschaft' })).toBeVisible()
+  await expect(page.getByText(/API-Version 2/)).toBeVisible()
+  await page.getByRole('navigation', { name: 'Systembereiche' }).getByRole('link', { name: 'Schlüssel' }).click()
   await expect(page.getByRole('heading', { name: 'OpenAI', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Gladia', exact: true })).toBeVisible()
-  await expect(page.getByText(/API-Version 2/)).toBeVisible()
 })
 
 test('full text search, alphabetical sorting, applied markers and view state survive section switches', async ({ page, request }) => {
@@ -33,7 +34,6 @@ test('full text search, alphabetical sorting, applied markers and view state sur
 
 test('draft recovery is explicit and confirmed discard never resurrects a draft', async ({ page, request }) => {
   await page.goto('/roboter')
-  await page.getByText('Gesprächszeiten', { exact: true }).click()
   const state = (await (await request.get('/api/config/applied')).json()).applied
   const timing = page.getByRole('spinbutton', { name: 'Zuhör-Timeout', exact: true })
   const value = state.listening_timeout_secs === 17.5 ? '18.5' : '17.5'
@@ -53,7 +53,6 @@ test('draft recovery is explicit and confirmed discard never resurrects a draft'
 
 test('change comparisons stay behind an info button and do not enlarge the footer', async ({ page }) => {
   await page.goto('/roboter')
-  await page.getByText('Gesprächszeiten', { exact: true }).click()
   await page.getByRole('spinbutton', { name: 'Zuhör-Timeout', exact: true }).fill('21.5')
   const footer = page.getByRole('region', { name: 'Offene Änderungen' })
   const height = (await footer.boundingBox())!.height
@@ -148,16 +147,10 @@ test('scenario badges follow the draft and ignore volume', async ({ page }) => {
   await expect(page.getByText('Szenario aktualisiert.', { exact: true })).toBeVisible()
 })
 
-test('sensor identification is explicit and dashboard transcripts export all lines', async ({ page, request }) => {
-  await page.goto('/llm?abschnitt=interactions')
-  await page.getByLabel('Sensor erkennen', { exact: true }).check()
+test('dashboard transcripts export all lines', async ({ page, request }) => {
+  await page.goto('/')
   const drive = (events: unknown[]) => request.post('/api/test/driver', { data: { events } })
-  await drive([{ type: 'picture', connection: { state: 'connected', address: '192.0.2.10' }, conversation_state: 'idle' }, { type: 'sensor.pressed', sensor_id: 'middle_head' }])
-  await expect(page.locator('[data-trigger="middle_head"]')).toHaveClass(/is-selected/)
-  await expect(page.getByLabel('Sensor erkennen', { exact: true })).not.toBeChecked()
-  await drive([{ type: 'sensor.pressed', sensor_id: 'left_hand' }])
-  await expect(page.locator('[data-trigger="middle_head"]')).toHaveClass(/is-selected/)
-  await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
+  await drive([{ type: 'picture', connection: { state: 'connected', address: '192.0.2.10' }, conversation_state: 'idle' }])
   await drive([{ type: 'transcript.message', speaker: 'visitor', text: 'Gesuchte Zeile' }, { type: 'transcript.message', speaker: 'nao', text: 'Andere Antwort' }])
   await expect(page.getByRole('searchbox', { name: 'Transkript durchsuchen', exact: true })).toHaveCount(0)
   await expect(page.locator('.line')).toHaveCount(2)

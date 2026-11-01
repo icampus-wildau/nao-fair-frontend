@@ -11,7 +11,7 @@ function contentName(id: string | null) {
 </script>
 
 <template>
-  <div class="system-tests" data-screen="system-tests">
+  <div data-screen="system-tests">
     <article class="panel test-conversation">
       <div class="panel-head">
         <h2>Browser-Gespräch testen</h2>
@@ -34,7 +34,9 @@ function contentName(id: string | null) {
         <div><dt>Hintergrundwissen</dt><dd>{{ applied.knowledge_ids.map(contentName).join(", ") || "Keines" }}</dd></div>
       </dl>
       <p class="why">Beim Verlassen der Tests werden Mikrofon und Gespräch beendet.</p>
-      <RouterLink class="linkish" to="/system#system-keys">API-Schlüssel verwalten →</RouterLink>
+      <RouterLink v-slot="{ href, navigate }" custom to="/system?abschnitt=schluessel">
+        <a class="linkish" :href="href" @click="navigate">API-Schlüssel verwalten →</a>
+      </RouterLink>
     </article>
   </div>
 </template>
