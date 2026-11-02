@@ -226,8 +226,37 @@ function setupBody(input: { name: string; description: string; slots: SetupSlots
   return { name: input.name, description: input.description, preset_ids }
 }
 
+export interface ProgramInstall {
+  program: string
+  state: "downloading" | "hostkey" | "installing" | "password" | "done" | "failed" | string
+  error: string
+  fingerprint: string
+  previous_fingerprint: string | null
+  changed: boolean
+}
+
+export interface RobotProgram {
+  id: string
+  label: string
+  running: boolean | null
+  reported_version: string | null
+  latest_version: string | null
+  action: "install" | "update" | "reinstall" | null
+}
+
+export interface ProgramReport {
+  address: string | null
+  releases_error: string | null
+  install: ProgramInstall | null
+  programs: RobotProgram[]
+}
+
 export const api = {
   system: (probe = false) => request<SystemReport>(`/api/system?probe=${probe}`),
+  programs: () => request<ProgramReport>("/api/programs"),
+  installProgram: (id: string, password: string) => request<ProgramInstall>(`/api/programs/${id}/install`, { method: "POST", body: JSON.stringify({ password, confirm: true }) }),
+  acceptHostKey: (accept: boolean) => request<ProgramInstall>("/api/programs/install/hostkey", { method: "POST", body: JSON.stringify({ accept }) }),
+  retryProgramPassword: (password: string) => request<ProgramInstall>("/api/programs/install/password", { method: "POST", body: JSON.stringify({ password }) }),
   references: (id: string) => request<References>(`/api/content/${id}/references`),
   audio: (patch: { volume?: number; speech_speed?: number }) => request<unknown>("/api/robot/audio", { method: "PATCH", body: JSON.stringify(patch) }),
   connect: (address: string) => request<unknown>("/api/robot/connect", { method: "POST", body: JSON.stringify({ address }) }),
