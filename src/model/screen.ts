@@ -1,4 +1,4 @@
-import { TRIGGER_IDS, TRIGGER_LABELS, isTriggerId, type TriggerId } from "./triggers"
+import { GESTURE_IDS, GESTURE_LABELS, TRIGGER_IDS, TRIGGER_LABELS, isTriggerId, type GestureId, type TriggerId } from "./triggers"
 import { bindingFrom } from "./drafts"
 import {
   CONVERSATION_LABELS,
@@ -32,6 +32,15 @@ export interface ScreenState {
   autostartSynced: boolean | null
 }
 
+export interface GestureRowView {
+  id: GestureId
+  label: string
+  action: string | null
+  motion: string | null
+  enabled: boolean
+  phrase: string
+}
+
 export interface TriggerRowView {
   id: TriggerId
   label: string
@@ -40,6 +49,7 @@ export interface TriggerRowView {
   pressNonce: number
   action: string | null
   motion: string | null
+  gestures: GestureRowView[]
 }
 
 export interface ViewState {
@@ -160,14 +170,24 @@ export function viewOf(state: ScreenState): ViewState {
     transcript: state.transcript,
     triggers: TRIGGER_IDS.map((id) => {
       const press = hardwareEnabled ? state.presses[id] : undefined
+      const trigger = state.applied?.triggers?.[id]
+      const gestures = GESTURE_IDS.map((gesture) => ({
+        id: gesture,
+        label: GESTURE_LABELS[gesture],
+        action: trigger?.[gesture]?.action ?? null,
+        motion: trigger?.[gesture]?.motion ?? null,
+        enabled: trigger?.[gesture]?.enabled !== false,
+        phrase: trigger?.[gesture]?.phrase ?? "",
+      }))
       return {
         id,
         label: TRIGGER_LABELS[id],
         pressed: hardwareEnabled ? Boolean(state.activePresses[id]) : false,
         pressedAt: press?.at ?? null,
         pressNonce: press?.nonce ?? 0,
-        action: state.applied?.triggers?.[id]?.action ?? null,
-        motion: state.applied?.triggers?.[id]?.motion ?? null,
+        action: gestures[0]?.action ?? null,
+        motion: gestures[0]?.motion ?? null,
+        gestures,
       }
     }),
     robotName: hardwareEnabled ? state.connection.name : null,
@@ -237,6 +257,8 @@ export function normalizeApplied(applied: Applied): Applied {
     tts_replacements: (applied.tts_replacements ?? []).map((entry) => ({ ...entry })),
     stt_vocabulary: (applied.stt_vocabulary ?? []).map((entry) => ({ ...entry })),
     autostart_enabled: applied.autostart_enabled !== false,
+    dialogs: (applied.dialogs ?? []).map((dialog) => ({ ...dialog, lines: dialog.lines.map((line) => ({ ...line })) })),
+    active_dialog_id: applied.active_dialog_id ?? null,
     triggers,
   }
 }

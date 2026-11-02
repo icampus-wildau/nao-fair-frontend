@@ -4,21 +4,15 @@ import SpeechComposer from "../components/SpeechComposer.vue"
 import TranscriptPanel from "../components/TranscriptPanel.vue"
 import AudioSliders from "../components/AudioSliders.vue"
 import TriggerList from "../components/TriggerList.vue"
-import { alphabetical, textStats } from "../model/operator"
-import { formatStamp } from "../model/format"
+import { textStats } from "../model/operator"
 import { MOTIONS } from "../model/triggers"
 import { CONVERSATION_LABELS, type ConversationState } from "../model/types"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
-const sensorRows = computed(() => store.capabilities ? alphabetical(store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)), row => row.label) : [])
+const sensorRows = computed(() => store.capabilities ? store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)) : [])
 
 const states: ConversationState[] = ["idle", "listening", "thinking", "speaking"]
-const lastPress = computed(() => {
-  const rows = sensorRows.value.filter((row) => row.pressedAt)
-  if (!rows.length) return null
-  return rows.reduce((latest, row) => (row.pressNonce > latest.pressNonce ? row : latest))
-})
 
 function contentName(id: string | null | undefined) {
   const item = store.content.find((entry) => entry.id === id)
@@ -91,17 +85,7 @@ const cards = computed(() => {
         <TranscriptPanel :searchable="false" fill />
       </article>
 
-      <article class="panel">
-        <div class="panel-head sensor-heading">
-          <RouterLink class="sensor-edit" to="/llm?abschnitt=interactions" aria-label="Sensoren und Zuordnungen bearbeiten" title="Sensoren und Zuordnungen bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
-          <h2>Robotersensoren</h2>
-          <p>{{ lastPress ? `Letzte Berührung: ${lastPress.label}, ${formatStamp(lastPress.pressedAt || "")}` : store.view.hardwareEnabled ? "Noch keine Berührung." : "Getrennt. Keine Berührung." }}</p>
-        </div>
-        <TriggerList :rows="sensorRows" />
-        <p v-if="!sensorRows.length" class="empty">Keine Sensoren gemeldet.</p>
-      </article>
-
-      <article class="panel">
+      <article class="panel dashboard-controls">
         <div class="panel-head">
           <h2>Schnellsteuerung</h2>
         </div>
@@ -125,21 +109,32 @@ const cards = computed(() => {
         </div>
       </article>
 
-      <article class="panel span-2">
+      <div class="dashboard-side">
+        <article class="panel">
+        <div class="panel-head sensor-heading">
+          <RouterLink class="sensor-edit" to="/llm?abschnitt=interactions" aria-label="Sensoren und Zuordnungen bearbeiten" title="Sensoren und Zuordnungen bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
+          <h2>Robotersensoren</h2>
+        </div>
+        <TriggerList :rows="sensorRows" dashboard />
+        <p v-if="!sensorRows.length" class="empty">Keine Sensoren gemeldet.</p>
+        </article>
+
+        <article class="panel">
         <div class="panel-head sensor-heading">
           <RouterLink class="sensor-edit" to="/llm?abschnitt=scenario" aria-label="Szenario bearbeiten" title="Szenario bearbeiten"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></RouterLink>
           <h2>Szenario <span v-for="badge in store.scenarioStatusBadges" :key="badge" class="badge">{{ badge }}</span></h2>
           <p class="setup-name">{{ store.selectedScenario?.name || "Kein Szenario" }}</p>
           <p v-if="store.selectedScenario?.description">{{ store.selectedScenario.description }}</p>
         </div>
-        <p v-if="promptTokens" class="help">Ausgewählte Promptteile: {{ promptTokens.words }} Wörter · ca. {{ promptTokens.tokens }} Token</p>
+        <p v-if="promptTokens" class="prompt-total"><span class="prompt-total-label">Gesamt-Prompt</span><strong>{{ promptTokens.words }} Wörter · ca. {{ promptTokens.tokens }} Token</strong></p>
         <div class="chips chips--compact">
           <RouterLink v-for="card in cards" :key="card.label" class="chip" :to="card.to">
             {{ card.label }}
             <small>{{ card.name }}</small>
           </RouterLink>
         </div>
-      </article>
+        </article>
+      </div>
 
     </div>
   </section>

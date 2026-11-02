@@ -56,11 +56,11 @@ test('change comparisons stay behind an info button and do not enlarge the foote
   await page.getByRole('spinbutton', { name: 'Zuhör-Timeout', exact: true }).fill('21.5')
   const footer = page.getByRole('region', { name: 'Offene Änderungen' })
   const height = (await footer.boundingBox())!.height
-  await page.getByRole('spinbutton', { name: 'Antwortzeit', exact: true }).fill('26.5')
-  await page.getByRole('spinbutton', { name: 'Mikrofon-Freigabe', exact: true }).fill('1.5')
+  await page.getByRole('spinbutton', { name: 'Max. LLM-Antwortzeit', exact: true }).fill('26.5')
+  await page.getByRole('spinbutton', { name: 'Mikrofon-Reaktivierung nach TTS', exact: true }).fill('1.5')
   expect((await footer.boundingBox())!.height).toBe(height)
   await footer.getByRole('button', { name: 'Änderungen anzeigen', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Änderungen anzeigen' })).toContainText('Antwortzeit')
+  await expect(page.getByRole('dialog', { name: 'Änderungen anzeigen' })).toContainText('Max. LLM-Antwortzeit')
   await page.getByRole('dialog').getByRole('button', { name: 'Schließen', exact: true }).click()
   await footer.getByRole('button', { name: 'Zurücksetzen', exact: true }).click()
 })
@@ -93,10 +93,11 @@ test('Markdown preview formats content while leaving raw HTML inert', async ({ p
 })
 
 test('dashboard phrases can be pinned offline without executing speech', async ({ page }) => {
+  await page.goto('/roboter?abschnitt=texte')
+  await page.getByRole('textbox', { name: 'Neuer Text', exact: true }).fill('Willkommen am Messestand.')
+  await page.getByRole('button', { name: 'Hinzufügen', exact: true }).click()
+  await page.getByRole('button', { name: 'Willkommen am Messestand. anheften', exact: true }).click()
   await page.goto('/')
-  await page.getByRole('textbox', { name: 'Text', exact: true }).fill('Willkommen am Messestand.')
-  await page.getByRole('button', { name: 'Anheften', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Text', exact: true }).fill('')
   await page.getByRole('button', { name: 'Willkommen am Messestand.', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Text', exact: true })).toHaveValue('Willkommen am Messestand.')
   await expect(page.getByRole('button', { name: 'Sprechen', exact: true })).toBeDisabled()
@@ -127,7 +128,7 @@ test('text and setup drafts recover after reload and reset removes their backups
 
 test('scenario badges follow the draft and ignore volume', async ({ page }) => {
   await page.goto('/llm?abschnitt=scenario')
-  await page.getByRole('button', { name: /^Standard/ }).click()
+  await page.locator('.scenario-row').filter({ hasText: 'Standard' }).getByRole('button', { name: 'Szenario laden', exact: true }).click()
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
   await page.getByRole('slider', { name: 'Lautstärke', exact: true }).fill('72')
   const heading = page.getByRole('heading', { name: /^Szenario/ })

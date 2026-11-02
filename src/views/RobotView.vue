@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import AudioSliders from "../components/AudioSliders.vue"
 import InfoTip from "../components/InfoTip.vue"
@@ -13,8 +13,8 @@ import { useConsole } from "../stores/console"
 type SectionId = "texte" | "sprache" | "bewegung"
 type Phrase = { text: string; pinned: boolean; used: number }
 const SECTIONS: { id: SectionId; label: string }[] = [
-  { id: "texte", label: "Vorgefertigte Texte" },
   { id: "sprache", label: "Sprache & Audio" },
+  { id: "texte", label: "Vorgefertigte Texte" },
   { id: "bewegung", label: "Bewegung" },
 ]
 const store = useConsole()
@@ -22,11 +22,15 @@ const route = useRoute()
 const router = useRouter()
 const section = ref<SectionId>("sprache")
 const lastSection = localRef<SectionId>("robot-last-section", "sprache")
+const wideLayout = ref(false)
+let wideMedia: MediaQueryList | null = null
+const showSpeechTextPair = computed(() => wideLayout.value && (section.value === "sprache" || section.value === "texte"))
 const phrases = localRef<Phrase[]>("speech-phrases", [])
 const phraseDraft = ref("")
 const testPhrase = ref("")
 const baseline = computed(() => (store.screen.applied ? robotDraftFrom(store.screen.applied) : null))
 const orderedPhrases = computed(() => [...phrases.value].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.text.localeCompare(b.text, "de")))
+const phraseSplit = computed(() => orderedPhrases.value.findIndex((row, index) => row.pinned && orderedPhrases.value[index + 1] && !orderedPhrases.value[index + 1]!.pinned))
 
 const languages = computed(() => {
   const current = store.robotDraft?.tts_language
@@ -68,6 +72,15 @@ function showSection(id: SectionId) {
   lastSection.value = id
 }
 
+function navActive(id: SectionId): boolean {
+  if (showSpeechTextPair.value && (id === "sprache" || id === "texte")) return true
+  return section.value === id
+}
+
+function syncWideLayout() {
+  wideLayout.value = wideMedia?.matches ?? false
+}
+
 function chooseSection(id: SectionId) {
   showSection(id)
   void router.replace({ query: { abschnitt: id } })
@@ -78,9 +91,16 @@ watch(() => route.query.abschnitt, (id) => {
 })
 
 onMounted(() => {
+  wideMedia = window.matchMedia("(min-width: 1101px)")
+  syncWideLayout()
+  wideMedia.addEventListener("change", syncWideLayout)
   const asked = route.query.abschnitt
   const id = typeof asked === "string" && isSection(asked) ? asked : isSection(lastSection.value) ? lastSection.value : "sprache"
   showSection(id)
+})
+
+onUnmounted(() => {
+  wideMedia?.removeEventListener("change", syncWideLayout)
 })
 
 function addPhrase() {
@@ -128,45 +148,35 @@ async function testSpeech() {
 <template>
   <section class="studio-view robot-view" data-screen="roboter">
     <ApplyBar :dirty="store.robotDirty" :busy="store.applying" :can-apply="Boolean(store.screen.applied)" :current="store.robotDraft" :baseline="baseline" @apply="store.apply('robot')" @reset="store.resetDraft('robot')" />
-    <div class="studio">
+    <div class="studio" :class="{ 'has-dual-speech': showSpeechTextPair }">
       <nav class="subnav" aria-label="Roboterbereiche">
-        <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': section === item.id }" :aria-current="section === item.id ? 'true' : undefined" @click="chooseSection(item.id)">
+        <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': navActive(item.id) }" :aria-current="navActive(item.id) ? 'true' : undefined" @click="chooseSection(item.id)">
           <strong>{{ item.label }}</strong>
           <small>{{ summary(item.id) }}</small>
         </button>
       </nav>
 
-      <article v-if="section === 'texte'" class="panel studio-main">
-        <div class="panel-head with-action">
-          <h2>Vorgefertigte Texte</h2>
-          <div class="toolbar-actions">
-            <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
-          </div>
-        </div>
-        <p class="help">Sätze für den Messestand. Sprechen führt den gespeicherten Text sofort aus. Angeheftete Sätze erscheinen auch in der Schnellsteuerung.</p>
-        <form class="term-form" @submit.prevent="addPhrase">
-          <input v-model="phraseDraft" class="inline-input" type="text" aria-label="Neuer Text" placeholder="Satz, den NAO sagen soll" />
-          <button type="submit" class="btn" :disabled="!phraseDraft.trim()">Hinzufügen</button>
-        </form>
-        <p v-if="!store.view.hardwareEnabled" class="why">Kein Roboter verbunden. Sprechen bleibt aus.</p>
-        <p v-if="!orderedPhrases.length" class="empty">Noch kein vorgefertigter Text.</p>
-        <div v-for="row in orderedPhrases" :key="row.text" class="phrase-library-row">
-          <input :value="row.text" class="inline-input" type="text" :aria-label="`${row.text} bearbeiten`" @change="renamePhrase(row, $event.target as HTMLInputElement)" />
-          <div class="phrase-actions">
-            <button type="button" class="btn-lime" :aria-label="`${row.text} sprechen`" :disabled="!store.view.hardwareEnabled" @click="speakRow(row)">Sprechen</button>
-            <button type="button" class="btn" :aria-label="`${row.text} ${row.pinned ? 'lösen' : 'anheften'}`" @click="row.pinned = !row.pinned">{{ row.pinned ? "Lösen" : "Anheften" }}</button>
-            <button type="button" class="btn-danger" :aria-label="`${row.text} entfernen`" @click="removePhrase(row)">Entfernen</button>
-          </div>
-        </div>
-      </article>
-
-      <article v-else-if="section === 'sprache'" class="panel studio-main">
+      <article v-show="section === 'sprache' || showSpeechTextPair" class="panel studio-main robot-pane-sprache">
         <div class="panel-head">
           <h2>Sprache &amp; Audio</h2>
         </div>
+        <div class="subsection-heading is-first"><h2>TTS testen</h2></div>
+        <form class="speech-form" @submit.prevent="testSpeech">
+          <input v-model="testPhrase" class="inline-input" type="text" aria-label="Text testen" placeholder="Text zum Testen der Stimme" />
+          <button type="submit" class="btn-lime" data-hardware="speak" :disabled="!store.view.hardwareEnabled || !testPhrase.trim()">Sprechen</button>
+          <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
+        </form>
         <p v-if="!store.robotDraft" class="why">Die Einstellungen erscheinen, sobald der Server eine Konfiguration schickt.</p>
         <template v-else>
-          <div class="subsection-heading is-first"><h2>Gesprächssteuerung</h2></div>
+          <div class="subsection-heading"><h2>Lautstärke und Tempo</h2></div>
+          <AudioSliders />
+          <label class="field">
+            <span>Sprache</span>
+            <select aria-label="Sprache" :value="store.robotDraft.tts_language" @change="store.patchRobot({ tts_language: ($event.target as HTMLSelectElement).value })">
+              <option v-for="language in languages" :key="language.id" :value="language.id">{{ language.label }}</option>
+            </select>
+          </label>
+          <div class="subsection-heading"><h2>Gesprächseinstellungen</h2></div>
           <label v-for="field in TIMING_FIELDS" :key="field.key" class="timing">
             <span>
               <strong>{{ field.label }}</strong> <InfoTip :text="field.help" :label="`${field.label} erklären`" />
@@ -183,13 +193,6 @@ async function testSpeech() {
             />
             <span>s</span>
           </label>
-          <label class="field">
-            <span>Sprache</span>
-            <select aria-label="Sprache" :value="store.robotDraft.tts_language" @change="store.patchRobot({ tts_language: ($event.target as HTMLSelectElement).value })">
-              <option v-for="language in languages" :key="language.id" :value="language.id">{{ language.label }}</option>
-            </select>
-          </label>
-          <AudioSliders />
           <div class="subsection-heading"><h2>Mikrofon &amp; Erkennung</h2></div>
           <label class="switch-row">
             <span>Mikrofon</span>
@@ -204,16 +207,32 @@ async function testSpeech() {
             <input type="checkbox" :checked="store.robotDraft.llm_enabled" @change="store.patchRobot({ llm_enabled: ($event.target as HTMLInputElement).checked })" />
           </label>
         </template>
-        <div class="subsection-heading" :class="{ 'is-first': !store.robotDraft }"><h2>Direkt testen</h2></div>
-        <p class="help">Spricht den Text sofort, ohne ihn zu speichern. Lautstärke und Sprechtempo gelten mit dem Regler, die Sprache nach Übernehmen.</p>
-        <form class="speech-form" @submit.prevent="testSpeech">
-          <input v-model="testPhrase" class="inline-input" type="text" aria-label="Text testen" placeholder="Text zum Testen der Stimme" />
-          <button type="submit" class="btn-lime" data-hardware="speak" :disabled="!store.view.hardwareEnabled || !testPhrase.trim()">Sprechen</button>
-          <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
-        </form>
       </article>
 
-      <article v-else class="panel studio-main">
+      <article v-show="section === 'texte' || showSpeechTextPair" class="panel studio-main robot-pane-texte">
+        <div class="panel-head with-action">
+          <h2>Vorgefertigte Texte</h2>
+          <div class="toolbar-actions">
+            <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
+          </div>
+        </div>
+        <form class="term-form" @submit.prevent="addPhrase">
+          <input v-model="phraseDraft" class="inline-input" type="text" aria-label="Neuer Text" placeholder="Satz, den NAO sagen soll" />
+          <button type="submit" class="btn" :disabled="!phraseDraft.trim()">Hinzufügen</button>
+        </form>
+        <p v-if="!store.view.hardwareEnabled" class="why">Kein Roboter verbunden. Sprechen bleibt aus.</p>
+        <p v-if="!orderedPhrases.length" class="empty">Noch kein vorgefertigter Text.</p>
+        <div v-for="(row, index) in orderedPhrases" :key="row.text" class="phrase-library-row" :class="{ 'is-split': index === phraseSplit }">
+          <input :value="row.text" class="inline-input" type="text" :aria-label="`${row.text} bearbeiten`" @change="renamePhrase(row, $event.target as HTMLInputElement)" />
+          <div class="phrase-actions">
+            <button type="button" class="btn-lime" :aria-label="`${row.text} sprechen`" :disabled="!store.view.hardwareEnabled" @click="speakRow(row)">Sprechen</button>
+            <button type="button" class="btn" :aria-label="`${row.text} ${row.pinned ? 'lösen' : 'anheften'}`" @click="row.pinned = !row.pinned">{{ row.pinned ? "Lösen" : "Anheften" }}</button>
+            <button type="button" class="btn-danger" :aria-label="`${row.text} entfernen`" @click="removePhrase(row)">Entfernen</button>
+          </div>
+        </div>
+      </article>
+
+      <article v-show="section === 'bewegung'" class="panel studio-main robot-pane-motion">
         <div class="panel-head">
           <h2>Bewegung</h2>
         </div>

@@ -1,4 +1,4 @@
-import type { TriggerId } from "./triggers"
+import type { GestureId, TriggerId } from "./triggers"
 
 export type ConnectionState = "disconnected" | "connecting" | "connected"
 export type ConversationState = "idle" | "listening" | "thinking" | "speaking"
@@ -21,12 +21,36 @@ export interface TranscriptLine {
   timestamp: string
 }
 
-export interface TriggerBinding {
+export type DialogDelivery = "plain" | "motion" | "animated"
+
+export interface GestureBinding {
   action: string | null
   phrase: string
   voice: string | null
   motion: string | null
   enabled: boolean
+}
+
+export interface TriggerBinding {
+  tap: GestureBinding
+  double_tap: GestureBinding
+  long_press: GestureBinding
+}
+
+export interface DialogLine {
+  speaker?: "nao" | "human"
+  id: string
+  text: string
+  delivery: DialogDelivery
+  motion: string | null
+}
+
+export interface Dialog {
+  id: string
+  name: string
+  wrap: boolean
+  idle_reset_secs: number | null
+  lines: DialogLine[]
 }
 
 export interface TtsReplacement {
@@ -68,6 +92,8 @@ export interface Applied {
   tts_replacements: TtsReplacement[]
   stt_vocabulary: SttTerm[]
   triggers: Record<TriggerId, TriggerBinding>
+  dialogs: Dialog[]
+  active_dialog_id: string | null
   autostart_enabled: boolean
 }
 
@@ -186,17 +212,17 @@ export const TIMING_FIELDS: { key: TimingKey; label: string; help: string }[] = 
   },
   {
     key: "context_reset_timeout_secs",
-    label: "Kontext zurücksetzen",
+    label: "Kontext zurücksetzen bei Inaktivität nach",
     help: "Nach dieser Zeit im Zustand Schläft werden Kontext und Transkript gelöscht.",
   },
   {
     key: "thinking_timeout_secs",
-    label: "Antwortzeit",
+    label: "Max. LLM-Antwortzeit",
     help: "Längste Wartezeit auf eine Antwort des Modells.",
   },
   {
     key: "unmute_delay_secs",
-    label: "Mikrofon-Freigabe",
+    label: "Mikrofon-Reaktivierung nach TTS",
     help: "Pause nach der Sprachausgabe, bevor das Mikrofon wieder offen ist.",
   },
 ]

@@ -14,6 +14,7 @@ import {
   addressUsedForConnect,
   interactionsDraftFrom,
   isIpv4,
+  triggerFrom,
   llmDraftFrom,
   robotDraftFrom,
   sameJson,
@@ -37,7 +38,8 @@ import {
   SENSOR_PRESS_FLASH_MS,
   viewOf,
 } from "../model/screen"
-import { isTriggerId, type TriggerId } from "../model/triggers"
+import { isTriggerId, TRIGGER_IDS, type GestureId, type TriggerId } from "../model/triggers"
+import type { Dialog, GestureBinding } from "../model/types"
 import {
   NOTICE_EXTERNAL_APPLY,
   type Applied,
@@ -313,8 +315,15 @@ export const useConsole = defineStore("console", () => {
     if (saved.robot && robotDraft.value) robotDraft.value = { ...robotDraft.value, ...saved.robot as RobotDraft, volume: screen.value.applied!.volume, speech_speed: screen.value.applied!.speech_speed }
     if (saved.llm && llmDraft.value) llmDraft.value = { ...llmDraft.value, ...saved.llm as LlmDraft }
     if (saved.interactions) {
-      const restored = saved.interactions as InteractionsDraft
-      interactionDraft.value = { ...restored, autostart_enabled: restored.autostart_enabled !== false }
+      const restored = saved.interactions as Partial<InteractionsDraft> & { triggers?: Record<string, unknown> }
+      const triggers = {} as InteractionsDraft["triggers"]
+      for (const id of TRIGGER_IDS) triggers[id] = triggerFrom(restored.triggers?.[id])
+      interactionDraft.value = {
+        triggers,
+        dialogs: restored.dialogs ?? [],
+        active_dialog_id: restored.active_dialog_id ?? null,
+        autostart_enabled: restored.autostart_enabled !== false,
+      }
     }
     if (saved.texts) textDrafts.value = saved.texts as typeof textDrafts.value
     if (saved.scenario) scenarioFormDraft.value = saved.scenario
@@ -498,9 +507,15 @@ export const useConsole = defineStore("console", () => {
       if (prompts.length > 0 && !draft.system_prompt_id) return "Wählen Sie einen System-Prompt."
     }
     if (screenName === "interactions" && interactionDraft.value) {
-      for (const binding of Object.values(interactionDraft.value.triggers)) {
-        if (binding.action === "speak" && !binding.phrase.trim()) return "Text sprechen braucht einen Wortlaut."
+      for (const trigger of Object.values(interactionDraft.value.triggers)) {
+        for (const binding of [trigger.tap, trigger.double_tap, trigger.long_press]) {
+          if (binding.action === "speak" && !binding.phrase.trim()) return "Text sprechen braucht einen Wortlaut."
+        }
       }
+      const names = interactionDraft.value.dialogs.map((dialog) => dialog.name.trim())
+      if (names.some((name) => !name)) return "Ein Dialog braucht einen Namen."
+      if (new Set(names).size !== names.length) return "Dialognamen müssen eindeutig sein."
+      if (interactionDraft.value.dialogs.some((dialog) => dialog.lines.some((line) => !line.text.trim()))) return "Jede Zeile braucht einen Text."
     }
     return null
   }
@@ -604,18 +619,24 @@ export const useConsole = defineStore("console", () => {
     interactionDraft.value = { ...interactionDraft.value, autostart_enabled: enabled }
   }
 
-  function patchTrigger(id: TriggerId, patch: Partial<InteractionsDraft["triggers"][TriggerId]>) {
+  function patchGesture(id: TriggerId, gesture: GestureId, patch: Partial<GestureBinding>) {
     if (!interactionDraft.value) return
-    const next = { ...interactionDraft.value.triggers[id], ...patch, voice: null }
+    const current = interactionDraft.value.triggers[id][gesture]
+    const next = { ...current, ...patch, voice: null }
     if (patch.action === "motion" && !next.motion) next.motion = "wave_left"
     if ("action" in patch && patch.action !== "motion") next.motion = null
     interactionDraft.value = {
       ...interactionDraft.value,
       triggers: {
         ...interactionDraft.value.triggers,
-        [id]: next,
+        [id]: { ...interactionDraft.value.triggers[id], [gesture]: next },
       },
     }
+  }
+
+  function setDialogs(dialogs: Dialog[], activeDialogId: string | null) {
+    if (!interactionDraft.value) return
+    interactionDraft.value = { ...interactionDraft.value, dialogs, active_dialog_id: activeDialogId }
   }
 
   function requireHardware(): boolean {
@@ -645,13 +666,13 @@ export const useConsole = defineStore("console", () => {
   function stopConversation() {
     return run(() => api.stopConversation(), "Gespräch beendet.")
   }
-  function speak(text: string) {
+  function speak(text: string, actionKey?: string) {
     const phrase = text.trim()
     if (!phrase) {
       setFeedback(false, "Der Text ist leer.")
       return
     }
-    return run(() => api.speak(phrase), "")
+    return run(() => api.speak(phrase, actionKey), "")
   }
   function stopSpeech() {
     return run(() => api.stopSpeech(), "Sprechen wurde gestoppt.")
@@ -663,13 +684,17 @@ export const useConsole = defineStore("console", () => {
     return run(() => api.stopMotion(), "Bewegung gestoppt.")
   }
 
-  async function testTrigger(id: TriggerId) {
-    const binding = interactionDraft.value?.triggers[id]
+  async function testGesture(id: TriggerId, gesture: GestureId) {
+    const binding = interactionDraft.value?.triggers[id]?.[gesture]
     if (!binding?.action) {
       setFeedback(false, "Diesem Auslöser ist keine Aktion zugeordnet.")
       return
     }
-    if (binding.action === "speak") return speak(binding.phrase)
+    if (binding.action === "dialog_next" || binding.action === "dialog_repeat" || binding.action === "dialog_previous") {
+      if (!requireHardware()) return
+      return run(() => api.dialogTest(binding.action as "dialog_next" | "dialog_repeat" | "dialog_previous"), "")
+    }
+    if (binding.action === "speak") return speak(binding.phrase, `trigger:${id}:${gesture}`)
     if (binding.action === "stop_speech") return stopSpeech()
     if (binding.action === "start_conversation") return startConversation()
     if (binding.action === "stop_conversation") return stopConversation()
@@ -737,11 +762,18 @@ export const useConsole = defineStore("console", () => {
 
   function fillFromScenario(scenario: Scenario) {
     if (!llmDraft.value || !interactionDraft.value) return
-    const { id, name, description, triggers, autostart_enabled, ...llm } = JSON.parse(JSON.stringify(scenario)) as Scenario
+    const { id, name, description, triggers: rawTriggers, dialogs, active_dialog_id, autostart_enabled, ...llm } = JSON.parse(JSON.stringify(scenario)) as Scenario
     void name
     void description
     llmDraft.value = { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })) }
-    interactionDraft.value = { triggers, autostart_enabled: autostart_enabled !== false }
+    const triggers = {} as InteractionsDraft["triggers"]
+    for (const triggerId of TRIGGER_IDS) triggers[triggerId] = triggerFrom(rawTriggers?.[triggerId])
+    interactionDraft.value = {
+      triggers,
+      dialogs: (dialogs ?? []).map((dialog) => ({ ...dialog, lines: dialog.lines.map((line) => ({ ...line })) })),
+      active_dialog_id: active_dialog_id ?? null,
+      autostart_enabled: autostart_enabled !== false,
+    }
     scenarioDirty.value = false
     scenarioFormDraft.value = null
     selectedScenarioId.value = id
@@ -756,6 +788,35 @@ export const useConsole = defineStore("console", () => {
       scenarioDirty.value = false
       scenarioFormDraft.value = null
       setFeedback(true, id ? "Szenario aktualisiert." : "Szenario gespeichert.")
+      return saved
+    } catch (error) {
+      setFeedback(false, errorText(error))
+      return null
+    }
+  }
+
+  async function duplicateScenario(source: Scenario) {
+    const { id, ...copy } = JSON.parse(JSON.stringify(source)) as Scenario
+    void id
+    copy.name = `Kopie von ${copy.name}`
+    try {
+      const saved = await api.createScenario(copy)
+      await refreshAfterWrite()
+      setFeedback(true, "Szenario dupliziert.")
+      return saved
+    } catch (error) {
+      setFeedback(false, errorText(error))
+      return null
+    }
+  }
+
+  async function replaceScenarioContent(target: Scenario, content: Omit<Scenario, "id" | "name" | "description">) {
+    const input = { name: target.name, description: target.description, ...JSON.parse(JSON.stringify(content)) }
+    try {
+      const saved = await api.updateScenario(target.id, input)
+      await refreshAfterWrite()
+      if (saved && selectedScenarioId.value === target.id) fillFromScenario(saved)
+      setFeedback(true, "Szenarioinhalt eingefügt.")
       return saved
     } catch (error) {
       setFeedback(false, errorText(error))
@@ -853,7 +914,8 @@ export const useConsole = defineStore("console", () => {
     discardChanges,
     patchLlm,
     patchAutostart,
-    patchTrigger,
+    patchGesture,
+    setDialogs,
     rangeFor,
     startConversation,
     stopConversation,
@@ -862,7 +924,7 @@ export const useConsole = defineStore("console", () => {
     stopSpeech,
     executeMotion,
     stopMotion,
-    testTrigger,
+    testGesture,
     motionAllowed,
     loadLibrary,
     saveContent,
@@ -870,6 +932,8 @@ export const useConsole = defineStore("console", () => {
     removeContent,
     fillFromScenario,
     saveScenario,
+    duplicateScenario,
+    replaceScenarioContent,
     removeScenario,
     putSecret,
     removeSecret,

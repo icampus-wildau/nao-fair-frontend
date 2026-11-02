@@ -1,5 +1,5 @@
 import { TRIGGER_IDS, type TriggerId } from "./triggers"
-import type { Applied, TtsReplacement, SttTerm, TriggerBinding, TimingKey, TimingRange } from "./types"
+import type { Applied, Dialog, GestureBinding, TtsReplacement, SttTerm, TriggerBinding, TimingKey, TimingRange } from "./types"
 
 export interface RobotDraft {
   volume: number
@@ -34,6 +34,8 @@ export interface LlmDraft {
 
 export interface InteractionsDraft {
   triggers: Record<TriggerId, TriggerBinding>
+  dialogs: Dialog[]
+  active_dialog_id: string | null
   autostart_enabled: boolean
 }
 
@@ -50,11 +52,11 @@ const DEFAULT_RANGES: Record<TimingKey, TimingRange> = {
   unmute_delay_secs: { min: 0, max: 10, step: 0.1 },
 }
 
-export function emptyBinding(): TriggerBinding {
-  return { action: null, phrase: "", voice: null, motion: null, enabled: true }
+export function emptyGesture(enabled = true): GestureBinding {
+  return { action: null, phrase: "", voice: null, motion: null, enabled }
 }
 
-export function bindingFrom(raw: Partial<TriggerBinding> | undefined): TriggerBinding {
+export function gestureFrom(raw: Partial<GestureBinding> | undefined): GestureBinding {
   return {
     action: raw?.action ? raw.action : null,
     phrase: raw?.phrase ?? "",
@@ -62,6 +64,24 @@ export function bindingFrom(raw: Partial<TriggerBinding> | undefined): TriggerBi
     motion: raw?.motion ?? null,
     enabled: raw?.enabled !== false,
   }
+}
+
+export function triggerFrom(raw: unknown): TriggerBinding {
+  const record = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
+  if (record.tap && typeof record.tap === "object") {
+    return {
+      tap: gestureFrom(record.tap as Partial<GestureBinding>),
+      double_tap: gestureFrom(record.double_tap as Partial<GestureBinding>),
+      long_press: gestureFrom(record.long_press as Partial<GestureBinding>),
+    }
+  }
+  const tap = gestureFrom(record as Partial<GestureBinding>)
+  const empty = emptyGesture(tap.enabled)
+  return { tap, double_tap: { ...empty }, long_press: { ...empty } }
+}
+
+export function bindingFrom(raw: unknown): TriggerBinding {
+  return triggerFrom(raw)
 }
 
 export function robotDraftFrom(applied: Applied): RobotDraft {
@@ -101,8 +121,13 @@ export function llmDraftFrom(applied: Applied): LlmDraft {
 
 export function interactionsDraftFrom(applied: Applied): InteractionsDraft {
   const triggers = {} as Record<TriggerId, TriggerBinding>
-  for (const id of TRIGGER_IDS) triggers[id] = bindingFrom(applied.triggers?.[id])
-  return { triggers, autostart_enabled: applied.autostart_enabled !== false }
+  for (const id of TRIGGER_IDS) triggers[id] = triggerFrom(applied.triggers?.[id])
+  return {
+    triggers,
+    dialogs: (applied.dialogs ?? []).map((dialog) => ({ ...dialog, lines: dialog.lines.map((line) => ({ ...line })) })),
+    active_dialog_id: applied.active_dialog_id ?? null,
+    autostart_enabled: applied.autostart_enabled !== false,
+  }
 }
 
 export function sameJson(a: unknown, b: unknown): boolean {

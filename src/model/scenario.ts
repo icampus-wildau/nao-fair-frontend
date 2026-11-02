@@ -1,17 +1,19 @@
 import { interactionsDraftFrom, llmDraftFrom } from "./drafts"
 import type { InteractionsDraft, LlmDraft } from "./drafts"
-import type { Applied, TriggerBinding } from "./types"
+import type { Applied, Dialog, TriggerBinding } from "./types"
 
 export interface Scenario extends LlmDraft {
   id: string
   name: string
   description: string
   triggers: Record<string, TriggerBinding>
+  dialogs?: Dialog[]
+  active_dialog_id?: string | null
   autostart_enabled?: boolean
 }
 
 export function combinationFrom(llm: LlmDraft, interactions: InteractionsDraft): Omit<Scenario, "id" | "name" | "description"> {
-  return { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })), triggers: cloneData(interactions.triggers), autostart_enabled: interactions.autostart_enabled !== false }
+  return { ...llm, knowledge_ids: [...llm.knowledge_ids], tts_replacements: llm.tts_replacements.map((entry) => ({ ...entry })), stt_vocabulary: llm.stt_vocabulary.map((entry) => ({ ...entry })), triggers: cloneData(interactions.triggers), dialogs: cloneData(interactions.dialogs), active_dialog_id: interactions.active_dialog_id, autostart_enabled: interactions.autostart_enabled !== false }
 }
 
 function cloneData<T>(value: T): T {
@@ -26,8 +28,8 @@ export function sameCombination(left: object, right: object): boolean {
   return stable(left) === stable(right)
 }
 
-export function mappingCount(triggers: Record<string, { action: string | null }>): number {
-  return Object.values(triggers).filter((binding) => binding.action).length
+export function mappingCount(triggers: Record<string, TriggerBinding>): number {
+  return Object.values(triggers).reduce((count, binding) => count + (["tap", "double_tap", "long_press"] as const).filter((name) => binding[name]?.action).length, 0)
 }
 
 export function scenarioBadges(selected: boolean, matchesScenario: boolean, matchesApplied: boolean): string[] {

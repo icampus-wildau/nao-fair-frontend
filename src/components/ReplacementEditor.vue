@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, toRaw } from 'vue'
+import { computed, nextTick, ref, toRaw } from 'vue'
 import { alphabetical } from '../model/operator'
 import { ttsErrors } from '../model/drafts'
 import { useConsole } from '../stores/console'
-import InfoTip from './InfoTip.vue'
 const store = useConsole()
 const search = ref('')
 const order = ref('name')
 const frozenOrder = ref<number[] | null>(null)
+const list = ref<HTMLElement | null>(null)
 const rowIds = new WeakMap<object, number>()
 let nextRowId = 0
 function identity(row: object) { const key = toRaw(row); if (!rowIds.has(key)) rowIds.set(key, ++nextRowId); return rowIds.get(key)! }
@@ -25,13 +25,43 @@ function patch(index: number, change: Partial<{ source: string; replacement: str
     return next
   }) })
 }
-function add() { if (store.llmDraft) store.patchLlm({ tts_replacements: [...store.llmDraft.tts_replacements, { source: '', replacement: '', enabled: true }] }) }
+async function add() {
+  if (!store.llmDraft) return
+  const index = store.llmDraft.tts_replacements.length
+  store.patchLlm({ tts_replacements: [...store.llmDraft.tts_replacements, { source: '', replacement: '', enabled: true }] })
+  await nextTick()
+  list.value?.querySelector<HTMLInputElement>(`[data-replacement-index="${index}"] input[aria-label="Quelle"]`)?.focus()
+}
 function remove(index: number) { if (store.llmDraft) store.patchLlm({ tts_replacements: store.llmDraft.tts_replacements.filter((_, i) => i !== index) }) }
 function move(index: number, direction: number) { if (!store.llmDraft) return; const next = [...store.llmDraft.tts_replacements]; const target = Math.min(next.length - 1, Math.max(0, index + direction)); const [row] = next.splice(index, 1); if (row) next.splice(target, 0, row); store.patchLlm({ tts_replacements: next }) }
 </script>
-<template><div class="list-toolbar"><input v-model="search" class="search" type="search" aria-label="Ersetzungen suchen" placeholder="Ersetzungen suchen" /><select v-model="order" class="inline-select" aria-label="Regeln sortieren"><option value="name">Alphabetisch</option><option value="priority">Ausführungspriorität</option></select><button type="button" class="btn" @click="add">Zeile hinzufügen</button><InfoTip text="Die alphabetische Ansicht ändert die Ausführung nicht. Niedrige Prioritätsnummern werden zuerst ausgeführt. Mit den Pfeilen lässt sich die Priorität ändern." label="Regelpriorität erklären" /></div>
+<template>
+  <div class="list-toolbar">
+    <input v-model="search" class="search" type="search" aria-label="Ersetzungen suchen" placeholder="Ersetzungen suchen" />
+    <select v-model="order" class="inline-select" aria-label="Regeln sortieren">
+      <option value="name">Alphabetisch</option>
+      <option value="priority">Ausführungspriorität</option>
+    </select>
+    <button type="button" class="btn" @click="add">Zeile hinzufügen</button>
+  </div>
   <p v-if="problem" class="why" role="alert">{{ problem }}</p>
-  <div class="tts-header help"><span>Priorität</span><span>Quelle</span><span>Ersetzung</span><span>Aktiv</span><span></span></div>
-  <div class="studio-list" @focusin="focusIn" @focusout="focusOut"><div v-for="row in visible" :key="row.uiId" class="studio-list-row replacement-row"><span class="num">{{ row.index + 1 }}</span><input type="text" class="inline-input" :value="row.source" aria-label="Quelle" @change="patch(row.index, { source: ($event.target as HTMLInputElement).value })" /><input type="text" class="inline-input" :value="row.replacement" aria-label="Ersetzung" @change="patch(row.index, { replacement: ($event.target as HTMLInputElement).value })" /><input type="checkbox" :checked="row.enabled" aria-label="Aktiv" @change="patch(row.index, { enabled: ($event.target as HTMLInputElement).checked })" /><div class="row-actions"><button type="button" class="btn" :disabled="row.index === 0" aria-label="Regel nach oben" @click="move(row.index, -1)">↑</button><button type="button" class="btn" :disabled="row.index === entries.length - 1" aria-label="Regel nach unten" @click="move(row.index, 1)">↓</button><button type="button" class="btn-danger" @click="remove(row.index)">Löschen</button></div></div>
+  <div class="tts-header help"><span>Aktiv</span><span>Quelle</span><span>Ersetzung</span><span class="prio">Priorität</span><span></span></div>
+  <div ref="list" class="studio-list" @focusin="focusIn" @focusout="focusOut">
+    <div v-for="row in visible" :key="row.uiId" class="studio-list-row replacement-row" :class="{ 'is-off': !row.enabled }" :data-replacement-index="row.index">
+      <label class="toggle">
+        <input type="checkbox" :checked="row.enabled" aria-label="Aktiv" @change="patch(row.index, { enabled: ($event.target as HTMLInputElement).checked })" />
+        <span class="toggle-ui" aria-hidden="true"></span>
+      </label>
+      <input type="text" class="inline-input" :value="row.source" aria-label="Quelle" @change="patch(row.index, { source: ($event.target as HTMLInputElement).value })" />
+      <input type="text" class="inline-input" :value="row.replacement" aria-label="Ersetzung" @change="patch(row.index, { replacement: ($event.target as HTMLInputElement).value })" />
+      <span class="num">{{ row.index + 1 }}</span>
+      <div class="row-actions">
+        <button type="button" class="btn" :disabled="row.index === 0" aria-label="Regel nach oben" @click="move(row.index, -1)">↑</button>
+        <button type="button" class="btn" :disabled="row.index === entries.length - 1" aria-label="Regel nach unten" @click="move(row.index, 1)">↓</button>
+        <button type="button" class="btn-danger icon-btn row-delete" aria-label="Löschen" @click="remove(row.index)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m8 7 1 13h6l1-13" /></svg>
+        </button>
+      </div>
+    </div>
   </div>
 </template>

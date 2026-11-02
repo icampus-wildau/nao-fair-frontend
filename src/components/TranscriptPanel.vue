@@ -67,7 +67,7 @@ function resized() {
     </div>
     <form v-if="!searchable" class="message-form" @submit.prevent="sendMessage">
       <input v-model="message" class="inline-input" aria-label="Nachricht" placeholder="Nachricht eingeben" />
-      <button type="submit" class="btn-charcoal" :disabled="!store.view.hardwareEnabled || !message.trim() || sending || ['thinking', 'speaking'].includes(store.view.conversationState)">Nachricht senden</button>
+      <button type="submit" class="btn-charcoal icon-btn" aria-label="Nachricht senden" title="Nachricht senden" :disabled="!store.view.hardwareEnabled || !message.trim() || sending || ['thinking', 'speaking'].includes(store.view.conversationState)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 12 16-8-6 16-2.4-6.2L4 12Z" /><path d="m11.6 13.8 3.1-3.1" /></svg></button>
     </form>
     <button v-if="!stick && transcript.length" type="button" class="btn scroll-back" @click="jump">Neue Zeilen</button>
   </div>

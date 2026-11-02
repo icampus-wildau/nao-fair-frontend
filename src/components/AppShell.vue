@@ -9,14 +9,15 @@ const route = useRoute()
 const router = useRouter()
 function restore() { const path = store.restoreDrafts(); if (!path || path === route.path) store.recoveryNavigation = false; else void router.push(path) }
 const menu = ref(false)
+const ttsTest = ref('')
 const errorOpen = ref(false)
 const errorDialog = ref<HTMLDialogElement | null>(null)
 watch(errorDialog, (dialog) => dialog?.showModal(), { flush: 'post' })
 const wide = window.matchMedia('(min-width: 761px)')
 const nav = [
   { to: '/', label: 'Dashboard', title: 'Dashboard' },
-  { to: '/roboter', label: 'Roboter', title: 'Robotereinstellungen' },
   { to: '/llm', label: 'Studio', title: 'Studio' },
+  { to: '/roboter', label: 'Roboter', title: 'Robotereinstellungen' },
   { to: '/system', label: 'System', title: 'System' },
 ]
 const title = computed(() => nav.find((item) => item.to === route.path)?.title ?? 'NAO Fair')
@@ -36,12 +37,24 @@ function onConnection() {
   if (connected.value || store.pendingConnect) store.disconnect()
   else store.connect()
 }
+async function speakTest() {
+  const text = ttsTest.value.trim()
+  if (!text || !store.view.hardwareEnabled) return
+  await store.speak(text)
+}
 </script>
 <template>
   <div class="shell">
     <header class="top">
       <div class="top-row">
-        <RouterLink class="brand" to="/">NAO Fair</RouterLink>
+        <div class="header-leading">
+          <RouterLink class="brand" to="/">NAO Fair</RouterLink>
+          <form class="header-tts" @submit.prevent="speakTest">
+            <input v-model="ttsTest" type="text" aria-label="Text testen" placeholder="TTS testen" autocomplete="off" spellcheck="false" />
+            <button type="submit" class="btn-lime" data-hardware="speak" :disabled="!store.view.hardwareEnabled || !ttsTest.trim()">Sprechen</button>
+            <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
+          </form>
+        </div>
         <h1 class="header-title">{{ title }}</h1>
         <div class="connection-cluster">
           <form class="connect" @submit.prevent="!connected && !store.pendingConnect && store.connect()">

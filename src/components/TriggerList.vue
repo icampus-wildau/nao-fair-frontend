@@ -1,22 +1,78 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { alphabetical } from '../model/operator'
-import { bindingLabel, type TriggerId } from '../model/triggers'
-import type { TriggerRowView } from '../model/screen'
+import { bindingLabel, compareTriggerIds, type GestureId, type TriggerId } from '../model/triggers'
+import type { GestureRowView, TriggerRowView } from '../model/screen'
 import type { TriggerBinding } from '../model/types'
-import InfoTip from './InfoTip.vue'
-const props = defineProps<{ rows: TriggerRowView[]; selectable?: boolean; selected?: TriggerId | null; bindings?: Partial<Record<TriggerId, TriggerBinding>> }>()
-const sortedRows = computed(() => alphabetical(props.rows, row => row.label))
-const emit = defineEmits<{ select: [TriggerId]; enable: [TriggerId, boolean] }>()
+const props = defineProps<{ rows: TriggerRowView[]; selectable?: boolean; selected?: { id: TriggerId; gesture: GestureId } | null; bindings?: Partial<Record<TriggerId, TriggerBinding>>; dashboard?: boolean }>()
+const sortedRows = computed(() => [...props.rows].sort((a, b) => compareTriggerIds(a.id, b.id)))
+const emit = defineEmits<{ select: [{ id: TriggerId; gesture: GestureId }]; enable: [TriggerId, GestureId, boolean] }>()
+function chosen(row: TriggerRowView, gesture: GestureId) {
+  return props.selected?.id === row.id && props.selected.gesture === gesture
+}
+
+function gestures(row: TriggerRowView): GestureRowView[] {
+  const source = props.bindings?.[row.id]
+  const rows = source
+    ? row.gestures.map((gesture) => ({ ...gesture, action: source[gesture.id]?.action ?? null, motion: source[gesture.id]?.motion ?? null, enabled: source[gesture.id]?.enabled !== false, phrase: source[gesture.id]?.phrase ?? "" }))
+    : row.gestures
+  return props.dashboard ? rows.filter((gesture) => gesture.enabled && gesture.action) : rows
+}
+const PHRASE_EMPTY = 'Kein Text eingetragen.'
+function spokenPhrase(gesture: GestureRowView) {
+  return gesture.phrase.trim()
+}
+function spokenText(gesture: GestureRowView) {
+  return spokenPhrase(gesture) || PHRASE_EMPTY
+}
+function spokenPreview(gesture: GestureRowView) {
+  const phrase = spokenPhrase(gesture)
+  return phrase ? `„${phrase}"` : PHRASE_EMPTY
+}
+function selectGesture(row: TriggerRowView, gesture: GestureId) {
+  if (!props.selectable) return
+  emit('select', { id: row.id, gesture })
+}
+function onGestureKeydown(event: KeyboardEvent, row: TriggerRowView, gesture: GestureId) {
+  if (!props.selectable || (event.key !== 'Enter' && event.key !== ' ')) return
+  event.preventDefault()
+  selectGesture(row, gesture)
+}
 </script>
 <template>
   <div class="trigger-list">
-    <div v-for="row in sortedRows" :key="row.id" class="sensor" :class="{ 'is-selected': selectable && selected === row.id }" :data-trigger="row.id" :data-pressed="row.pressed ? 'true' : 'false'">
+    <div v-for="row in sortedRows" :key="row.id" class="sensor sensor-group" :data-trigger="row.id" :data-pressed="row.pressed ? 'true' : 'false'">
       <span v-if="row.pressed" :key="row.pressNonce" class="sensor-flash" aria-hidden="true"></span>
-      <button v-if="selectable" type="button" class="sensor-choice" :aria-pressed="selected === row.id" @click="emit('select', row.id)"><span class="sensor-name">{{ row.label }}</span><span class="sensor-action">{{ bindingLabel(row.action, row.motion) }}</span></button>
-      <template v-else><span class="sensor-name">{{ row.label }}</span><span class="sensor-action">{{ bindingLabel(row.action, row.motion) }}</span></template>
-      <InfoTip v-if="row.action === 'speak' && bindings" :text="bindings[row.id]?.phrase || 'Kein Text eingetragen.'" :label="`Wortlaut für ${row.label}`" />
-      <input v-if="bindings" type="checkbox" :checked="bindings[row.id]?.enabled !== false" :aria-label="`${row.label} aktiv`" @change="emit('enable', row.id, ($event.target as HTMLInputElement).checked)" />
+      <div class="sensor-body">
+        <span class="sensor-head">{{ row.label }}</span>
+        <div
+          v-for="gesture in gestures(row)"
+          :key="gesture.id"
+          class="gesture"
+          :class="{ 'is-selected': selectable && chosen(row, gesture.id) }"
+          :data-gesture="gesture.id"
+          :role="selectable ? 'button' : undefined"
+          :tabindex="selectable ? 0 : undefined"
+          :aria-pressed="selectable ? chosen(row, gesture.id) : undefined"
+          @click="selectGesture(row, gesture.id)"
+          @keydown="onGestureKeydown($event, row, gesture.id)"
+        >
+          <label v-if="bindings" class="toggle" @click.stop>
+            <input type="checkbox" :checked="gesture.enabled" :aria-label="`${row.label} ${gesture.label} aktiv`" @change="emit('enable', row.id, gesture.id, ($event.target as HTMLInputElement).checked)" />
+            <span class="toggle-ui" aria-hidden="true"></span>
+          </label>
+          <div v-if="selectable" class="sensor-choice">
+            <span class="sensor-name">{{ gesture.label }}</span>
+            <span v-if="gesture.action !== 'speak'" class="sensor-action">{{ bindingLabel(gesture.action, gesture.motion) }}</span>
+          </div>
+          <template v-else>
+            <span class="sensor-name">{{ gesture.label }}</span>
+            <span v-if="gesture.action !== 'speak'" class="sensor-action">{{ bindingLabel(gesture.action, gesture.motion) }}</span>
+          </template>
+          <UTooltip v-if="gesture.action === 'speak'" :text="spokenText(gesture)" :delay-duration="600" :content="{ side: 'top' }">
+            <span class="sensor-phrase" :class="{ 'has-phrase': !!spokenPhrase(gesture) }" :aria-label="`Wortlaut für ${row.label}`">{{ spokenPreview(gesture) }}</span>
+          </UTooltip>
+        </div>
+      </div>
     </div>
   </div>
 </template>

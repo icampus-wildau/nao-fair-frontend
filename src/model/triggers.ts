@@ -10,6 +10,20 @@ export const TRIGGER_IDS = [
 
 export type TriggerId = (typeof TRIGGER_IDS)[number]
 
+export const GESTURE_IDS = ["tap", "double_tap", "long_press"] as const
+export type GestureId = (typeof GESTURE_IDS)[number]
+export const GESTURE_LABELS: Record<GestureId, string> = {
+  tap: "Tippen",
+  double_tap: "Doppeltipp",
+  long_press: "Gedrückt halten",
+}
+export const LINE_MOTIONS = [
+  { id: "wave_left", label: "Winken links" },
+  { id: "wave_right", label: "Winken rechts" },
+  { id: "nod", label: "Nicken" },
+  { id: "shake", label: "Kopf schütteln" },
+]
+
 export const TRIGGER_LABELS: Record<TriggerId, string> = {
   front_head: "Kopf vorne",
   middle_head: "Kopf Mitte",
@@ -27,6 +41,9 @@ export const ACTION_LABELS: Record<string, string> = {
   stop_conversation: "Gespräch beenden",
   stop_speech: "Sprechen stoppen",
   speak: "Text sprechen",
+  dialog_next: "Nächste Zeile",
+  dialog_repeat: "Zeile wiederholen",
+  dialog_previous: "Vorherige Zeile",
   wave: "Winken",
   nod: "Nicken",
   shake: "Kopf schütteln",
@@ -34,29 +51,59 @@ export const ACTION_LABELS: Record<string, string> = {
   stop_motion: "Bewegung stoppen",
 }
 
+export const ACTION_NONE = { id: null, label: "Keine Aktion" } as const
+
+export const ACTION_GROUPS: { label: string; options: { id: string; label: string }[] }[] = [
+  {
+    label: "Gespräch",
+    options: [
+      { id: "start_conversation", label: ACTION_LABELS.start_conversation },
+      { id: "stop_conversation", label: ACTION_LABELS.stop_conversation },
+      { id: "toggle_conversation", label: ACTION_LABELS.toggle_conversation },
+      { id: "stop_and_clear", label: ACTION_LABELS.stop_and_clear },
+    ],
+  },
+  {
+    label: "Sprechen",
+    options: [
+      { id: "speak", label: ACTION_LABELS.speak },
+      { id: "stop_speech", label: ACTION_LABELS.stop_speech },
+    ],
+  },
+  {
+    label: "Definierter Dialog",
+    options: [
+      { id: "dialog_next", label: ACTION_LABELS.dialog_next },
+      { id: "dialog_repeat", label: ACTION_LABELS.dialog_repeat },
+      { id: "dialog_previous", label: ACTION_LABELS.dialog_previous },
+    ],
+  },
+  {
+    label: "Bewegung",
+    options: [
+      { id: "motion", label: ACTION_LABELS.motion },
+      { id: "stop_motion", label: ACTION_LABELS.stop_motion },
+    ],
+  },
+]
+
 export const ACTION_OPTIONS: { id: string | null; label: string }[] = [
-  { id: null, label: "Keine Aktion" },
-  { id: "toggle_conversation", label: ACTION_LABELS.toggle_conversation },
-  { id: "stop_and_clear", label: ACTION_LABELS.stop_and_clear },
-  { id: "start_conversation", label: ACTION_LABELS.start_conversation },
-  { id: "stop_conversation", label: ACTION_LABELS.stop_conversation },
-  { id: "stop_speech", label: ACTION_LABELS.stop_speech },
-  { id: "speak", label: ACTION_LABELS.speak },
-  { id: "motion", label: ACTION_LABELS.motion },
-  { id: "stop_motion", label: ACTION_LABELS.stop_motion },
+  ACTION_NONE,
+  ...ACTION_GROUPS.flatMap((group) => group.options),
 ]
 
 export const MOTIONS: { id: string; label: string }[] = [
-  { id: "wave_left", label: "Winken links" },
-  { id: "wave_right", label: "Winken rechts" },
   { id: "nod", label: "Nicken" },
   { id: "shake", label: "Kopf schütteln" },
-  { id: "sit", label: "Hinsetzen" },
+  { id: "wave_left", label: "Winken links" },
+  { id: "wave_right", label: "Winken rechts" },
   { id: "stand", label: "Aufstehen" },
+  { id: "sit", label: "Hinsetzen" },
 ]
 
-ACTION_OPTIONS.sort((a, b) => a.label.localeCompare(b.label, "de"))
-MOTIONS.sort((a, b) => a.label.localeCompare(b.label, "de"))
+export function compareTriggerIds(a: TriggerId, b: TriggerId): number {
+  return TRIGGER_IDS.indexOf(a) - TRIGGER_IDS.indexOf(b)
+}
 
 export const AUTOSTART_INFO =
   "Wenn aktiviert, führt der Roboter die zugeordneten Aktionen nach dem Start selbst aus, auch ohne laufende NAO Fair App. Das gilt nur für die Aktionen wie vorgefertigte Texte, die selbstständig ausführbar sind und die NAO Fair App nicht benötigen."

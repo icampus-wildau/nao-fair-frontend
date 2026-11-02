@@ -5,7 +5,9 @@ import { TRIGGER_IDS } from "./triggers"
 import type { Applied, Picture, ServerMessage, TriggerBinding } from "./types"
 
 function binding(action: string | null): TriggerBinding {
-  return { action, phrase: "", voice: null, motion: null, enabled: true }
+  const gesture = { action, phrase: "", voice: null, motion: null, enabled: true }
+  const empty = { action: null, phrase: "", voice: null, motion: null, enabled: true }
+  return { tap: gesture, double_tap: empty, long_press: { ...empty } }
 }
 
 function applied(): Applied {
@@ -37,6 +39,8 @@ function applied(): Applied {
     tts_replacements: [],
     stt_vocabulary: [],
     autostart_enabled: true,
+    dialogs: [],
+    active_dialog_id: null,
     triggers: {
       front_head: binding("toggle_conversation"),
       middle_head: binding(null),

@@ -25,6 +25,10 @@ describe("loading another scenario", () => {
 
 describe("mapping count", () => {
   it("counts triggers that have an action", () => {
-    expect(mappingCount({ head: { action: "wave" }, hand: { action: null } })).toBe(1)
+    const gesture = { phrase: "", voice: null, motion: null, enabled: true }
+    expect(mappingCount({
+      head: { tap: { ...gesture, action: "wave" }, double_tap: { ...gesture, action: null }, long_press: { ...gesture, action: "dialog_next" } },
+      hand: { tap: { ...gesture, action: null }, double_tap: { ...gesture, action: null }, long_press: { ...gesture, action: null } },
+    })).toBe(2)
   })
 })
