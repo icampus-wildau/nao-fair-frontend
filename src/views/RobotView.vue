@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import AudioSliders from "../components/AudioSliders.vue"
+import Glyph from "../components/Glyph.vue"
+import { stopIcon, volumeIcon } from "../icons"
 import InfoTip from "../components/InfoTip.vue"
 import ApplyBar from "../components/ApplyBar.vue"
 import SubNavigation from "../components/SubNavigation.vue"
@@ -139,7 +141,12 @@ async function speakRow(row: Phrase) {
   if (ok) row.used = Date.now()
 }
 
+const speaking = computed(() => store.view.conversationState === "speaking")
 async function testSpeech() {
+  if (speaking.value) {
+    if (store.view.hardwareEnabled) await store.stopSpeech()
+    return
+  }
   const text = testPhrase.value.trim()
   if (!text || !store.view.hardwareEnabled) return
   await store.speak(text)
@@ -163,9 +170,10 @@ async function testSpeech() {
         </div>
         <div class="subsection-heading is-first"><h2>TTS testen</h2></div>
         <form class="speech-form" @submit.prevent="testSpeech">
-          <input v-model="testPhrase" class="inline-input" type="text" aria-label="Text testen" placeholder="Text zum Testen der Stimme" />
-          <button type="submit" class="btn-lime" data-hardware="speak" :disabled="!store.view.hardwareEnabled || !testPhrase.trim()">Sprechen</button>
-          <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
+          <div class="input-action">
+            <input v-model="testPhrase" class="inline-input" type="text" aria-label="Text testen" placeholder="Text zum Testen der Stimme" />
+            <button type="button" class="input-icon" :data-hardware="speaking ? 'speak-stop' : 'speak'" :aria-label="speaking ? 'Stoppen' : 'Sprechen'" :title="speaking ? 'Stoppen' : 'Sprechen'" :disabled="speaking ? !store.view.hardwareEnabled : !store.view.hardwareEnabled || !testPhrase.trim()" @click="testSpeech"><Glyph :icon="speaking ? stopIcon : volumeIcon" /></button>
+          </div>
         </form>
         <p v-if="!store.robotDraft" class="why">Die Einstellungen erscheinen, sobald der Server eine Konfiguration schickt.</p>
         <template v-else>

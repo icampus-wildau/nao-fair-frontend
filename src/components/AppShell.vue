@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ErrorHelp from './ErrorHelp.vue'
 import ConnectionControls from './ConnectionControls.vue'
+import Glyph from './Glyph.vue'
+import { stopIcon, volumeIcon } from '../icons'
 import { useConsole } from '../stores/console'
 
 const store = useConsole()
@@ -26,6 +28,7 @@ const nav = [
   { to: '/system', label: 'System', title: 'System' },
 ]
 const title = computed(() => nav.find((item) => item.to === route.path)?.title ?? 'NAO Fair')
+const speaking = computed(() => store.view.conversationState === 'speaking')
 const connected = computed(() => store.view.connectionState === 'connected')
 const connectionError = computed(() => store.addressError || store.serverLine || store.shownFailure || (store.backendOutdated ? store.systemError || 'Backend-Version veraltet. Bitte den Server neu starten.' : null))
 const dotClass = computed(() => connectionError.value ? 'is-bad' : store.pendingConnect || store.view.connectionState === 'connecting' ? 'is-wait' : connected.value ? 'is-on' : '')
@@ -53,6 +56,10 @@ function closeMenuOnWide() { if (wide.matches && menu.value) finishCloseMenu() }
 onMounted(() => { store.start(); closeMenuOnWide(); wide.addEventListener('change', closeMenuOnWide) })
 onUnmounted(() => { window.clearTimeout(feedbackTimer); window.clearTimeout(menuCloseTimer); wide.removeEventListener('change', closeMenuOnWide) })
 async function speakTest() {
+  if (speaking.value) {
+    if (store.view.hardwareEnabled) await store.stopSpeech()
+    return
+  }
   const text = ttsTest.value.trim()
   if (!text || !store.view.hardwareEnabled) return
   await store.speak(text)
@@ -65,9 +72,10 @@ async function speakTest() {
         <div class="header-leading">
           <RouterLink class="brand" to="/">NAO Fair</RouterLink>
           <form class="header-tts" @submit.prevent="speakTest">
-            <input v-model="ttsTest" type="text" aria-label="Text testen" placeholder="TTS testen" autocomplete="off" spellcheck="false" />
-            <button type="submit" class="btn-lime" data-hardware="speak" :disabled="!store.view.hardwareEnabled || !ttsTest.trim()">Sprechen</button>
-            <button type="button" class="btn-charcoal" data-hardware="speak-stop" :disabled="!store.view.hardwareEnabled" @click="store.view.hardwareEnabled && store.stopSpeech()">Stoppen</button>
+            <div class="input-action">
+              <input v-model="ttsTest" type="text" aria-label="Text testen" placeholder="TTS testen" autocomplete="off" spellcheck="false" />
+              <button type="button" class="input-icon" :data-hardware="speaking ? 'speak-stop' : 'speak'" :aria-label="speaking ? 'Stoppen' : 'Sprechen'" :title="speaking ? 'Stoppen' : 'Sprechen'" :disabled="speaking ? !store.view.hardwareEnabled : !store.view.hardwareEnabled || !ttsTest.trim()" @click="speakTest"><Glyph :icon="speaking ? stopIcon : volumeIcon" /></button>
+            </div>
           </form>
         </div>
         <h1 class="header-title">{{ title }}</h1>
