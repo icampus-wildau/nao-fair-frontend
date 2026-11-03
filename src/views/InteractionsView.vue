@@ -9,6 +9,7 @@ import { useConsole } from "../stores/console"
 const store = useConsole()
 const selected = ref<{ id: TriggerId; gesture: GestureId }>({ id: "front_head", gesture: "tap" })
 const menuOpen = ref(false)
+const detailOpen = ref(false)
 const picker = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 const menuStyle = ref({ top: "0px", left: "0px", width: "240px", maxHeight: "320px", transform: "none" })
@@ -84,7 +85,7 @@ function chooseAction(action: string | null) {
 <template>
   <div class="interactions-screen" data-screen="interaktionen">
     <p v-if="!store.interactionDraft" class="why">Die Zuordnungen erscheinen, sobald der Server eine Konfiguration schickt. Die verfügbaren Auslöser werden vom Server geladen.</p>
-    <div v-else class="interact">
+    <div v-else class="interact" :class="{ 'interaction-detail-open': detailOpen }">
       <section v-if="store.interactionDraft || store.view.hardwareEnabled" class="panel autostart-bar" aria-label="Autostart">
         <label v-if="store.interactionDraft" class="toggle autostart-toggle">
           <input type="checkbox" aria-label="Aktiviert im Autostart" :checked="store.interactionDraft.autostart_enabled" @change="store.patchAutostart(($event.target as HTMLInputElement).checked)" />
@@ -95,16 +96,17 @@ function chooseAction(action: string | null) {
         <p v-else-if="store.view.hardwareEnabled && store.view.autostartSynced === false" class="why">Der Roboter hat diesen Autostart noch nicht übernommen.</p>
         <p v-if="store.view.hardwareEnabled" class="why">Solange die NAO Fair App verbunden ist, reagieren die Tasten in der App.</p>
       </section>
-      <article class="panel interact-col">
+      <article class="panel interact-col interaction-list">
         <div class="panel-head">
           <h2>Auslöser</h2>
         </div>
         <div class="interact-scroll">
-          <TriggerList :rows="rows" selectable :selected="selected" :bindings="store.interactionDraft?.triggers" @select="selected = $event; menuOpen = false" @enable="(id, gesture, enabled) => store.patchGesture(id, gesture, { enabled })" />
+          <TriggerList :rows="rows" selectable :selected="selected" :bindings="store.interactionDraft?.triggers" @select="selected = $event; menuOpen = false; detailOpen = true" @enable="(id, gesture, enabled) => store.patchGesture(id, gesture, { enabled })" />
           <p v-if="!rows.length" class="empty">Keine Sensoren gemeldet.</p>
         </div>
       </article>
-      <article class="panel interact-col">
+      <article class="panel interact-col interaction-detail">
+        <button type="button" class="btn interaction-back" @click="detailOpen = false">Zurück zu Auslösern</button>
         <div class="panel-head">
           <h2>Aktion zuordnen</h2>
           <p v-if="sensorLabel">{{ sensorLabel }} · {{ gestureLabel }}</p>

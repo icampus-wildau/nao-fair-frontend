@@ -5,6 +5,7 @@ import KeysView from "./KeysView.vue"
 import ProgramsView from "./ProgramsView.vue"
 import SystemTestsView from "./SystemTestsView.vue"
 import InfoTip from "../components/InfoTip.vue"
+import SubNavigation from "../components/SubNavigation.vue"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
@@ -41,14 +42,14 @@ onMounted(() => store.loadSystem())
 <template>
   <section data-screen="system" class="studio-view system-page">
     <div class="studio">
-      <nav class="subnav" aria-label="Systembereiche">
+      <SubNavigation label="Systembereiche" :current="sections.find(item => item.id === section)?.label || 'System'">
         <RouterLink v-for="item in sections" :key="item.id" v-slot="{ href, navigate }" custom :to="item.to">
           <a class="tile" :class="{ 'is-on': section === item.id }" :href="href" :aria-current="section === item.id ? 'page' : undefined" @click="navigate">
             <strong>{{ item.label }}</strong>
             <small>{{ item.summary }}</small>
           </a>
         </RouterLink>
-      </nav>
+      </SubNavigation>
       <SystemTestsView v-if="section === 'tests'" class="studio-main system-tests" />
       <ProgramsView v-else-if="section === 'programme'" class="studio-main" />
       <div v-else-if="section === 'schluessel'" class="studio-main keys-host">

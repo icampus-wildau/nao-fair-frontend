@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import AudioSliders from "../components/AudioSliders.vue"
 import InfoTip from "../components/InfoTip.vue"
 import ApplyBar from "../components/ApplyBar.vue"
+import SubNavigation from "../components/SubNavigation.vue"
 import { robotDraftFrom } from "../model/drafts"
 import { localRef } from "../model/local-state"
 import { MOTIONS } from "../model/triggers"
@@ -149,12 +150,12 @@ async function testSpeech() {
   <section class="studio-view robot-view" data-screen="roboter">
     <ApplyBar :dirty="store.robotDirty" :busy="store.applying" :can-apply="Boolean(store.screen.applied)" :current="store.robotDraft" :baseline="baseline" @apply="store.apply('robot')" @reset="store.resetDraft('robot')" />
     <div class="studio" :class="{ 'has-dual-speech': showSpeechTextPair }">
-      <nav class="subnav" aria-label="Roboterbereiche">
+      <SubNavigation label="Roboterbereiche" :current="SECTIONS.find(item => item.id === section)?.label || 'Roboter'">
         <button v-for="item in SECTIONS" :key="item.id" type="button" class="tile" :class="{ 'is-on': navActive(item.id) }" :aria-current="navActive(item.id) ? 'true' : undefined" @click="chooseSection(item.id)">
           <strong>{{ item.label }}</strong>
           <small>{{ summary(item.id) }}</small>
         </button>
-      </nav>
+      </SubNavigation>
 
       <article v-show="section === 'sprache' || showSpeechTextPair" class="panel studio-main robot-pane-sprache">
         <div class="panel-head">

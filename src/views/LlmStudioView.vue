@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ApplyBar from '../components/ApplyBar.vue'
+import SubNavigation from '../components/SubNavigation.vue'
 import InfoTip from '../components/InfoTip.vue'
 import MarkdownPreview from '../components/MarkdownPreview.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
@@ -58,6 +59,7 @@ const studio = ref<HTMLElement | null>(null)
 const textDrafts = toRef(store, 'textDrafts')
 const busy = ref(false)
 const filter = ref('')
+const scenarioDetailOpen = ref(false)
 const scenarioQuery = ref('')
 const scenarioName = ref('')
 const scenarioDescription = ref('')
@@ -296,7 +298,8 @@ function wouldLoseEdits() {
   })
 }
 function toggleInspect(id: string) {
-  inspectedScenarioId.value = inspectedScenarioId.value === id ? null : id
+  inspectedScenarioId.value = window.matchMedia('(max-width: 1100px)').matches ? id : inspectedScenarioId.value === id ? null : id
+  scenarioDetailOpen.value = true
 }
 function requestLoad(id: string) {
   const target = store.scenarios.find((item) => item.id === id)
@@ -353,6 +356,11 @@ async function updateSelected() {
   if (!store.selectedScenario) return
   if (!scenarioName.value.trim()) { store.feedback = { ok: false, text: 'Das Szenario braucht einen Namen.' }; return }
   await store.saveScenario(store.selectedScenario.id, scenarioName.value.trim(), scenarioDescription.value.trim())
+}
+function beginCreateScenario() {
+  if (store.selectedScenario) createOpen.value = true
+  else if (window.matchMedia('(max-width: 1100px)').matches) { inspectedScenarioId.value = null; scenarioDetailOpen.value = true }
+  else void createScenario()
 }
 async function createScenario() {
   const name = store.selectedScenario ? createName.value : scenarioName.value
@@ -425,8 +433,8 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
 <template>
   <section class="studio-view" data-screen="llm">
     <ApplyBar :dirty="store.llmDirty || store.contentDirty || store.llmContentPending || store.interactionDirty || store.scenarioDirty" :interrupts="store.llmDirty || store.contentDirty || store.llmContentPending" :busy="busy" :can-apply="Boolean(store.screen.applied)" :current="store.llmDraft" :baseline="baseline" :extra-changes="textChanges" :message="store.llmContentPending ? 'Gespeicherte Texte sind noch nicht übernommen.' : undefined" @apply="applyStudio" @reset="resetStudio" />
-    <div ref="studio" class="studio" :class="{ 'has-editor': hasEditor, 'has-scenario': section === 'scenario', 'has-dialogs': section === 'dialogs' }" :style="{ '--editor-width': `${editorWidth}px` }">
-      <nav class="subnav" aria-label="Inhalte">
+    <div ref="studio" class="studio" :class="{ 'has-editor': hasEditor, 'has-scenario': section === 'scenario', 'has-dialogs': section === 'dialogs', 'scenario-detail-open': scenarioDetailOpen }" :style="{ '--editor-width': `${editorWidth}px` }">
+      <SubNavigation label="Inhalte" :current="current.label">
         <button type="button" class="tile tile-pin rule-after" :class="{ 'is-on': section === 'scenario' }" :aria-current="section === 'scenario' ? 'true' : undefined" @click="chooseSection('scenario')">
           <strong>Szenario</strong><small>{{ summary('scenario') }}</small>
         </button>
@@ -441,13 +449,14 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
         <button type="button" class="tile tile-pin" :class="{ 'is-on': section === 'dialogs' }" :aria-current="section === 'dialogs' ? 'true' : undefined" @click="chooseSection('dialogs')">
           <strong>Dialoge</strong><small>{{ summary('dialogs') }}</small>
         </button>
-      </nav>
+      </SubNavigation>
       <article v-if="!store.llmDraft" class="panel studio-main"><h2>{{ current.label }}</h2><p class="empty">Konfiguration wird geladen …</p></article>
       <article v-else-if="section === 'scenario'" class="panel studio-main">
         <div class="panel-head with-action">
           <h2>Szenarien</h2>
-          <button type="button" class="btn scenario-create" @click="store.selectedScenario ? (createOpen = true) : createScenario()">Aktuelle Konfiguration als neues Szenario speichern</button>
+          <button type="button" class="btn scenario-create" aria-label="Aktuelle Konfiguration als neues Szenario speichern" @click="beginCreateScenario"><span class="scenario-create-long">Aktuelle Konfiguration als neues Szenario speichern</span><span class="scenario-create-short" aria-hidden="true">Als neu speichern</span></button>
         </div>
+        <button type="button" class="scenario-current scenario-detail-trigger" aria-label="Aktuelle Konfiguration ansehen" @click="inspectedScenarioId = null; scenarioDetailOpen = true"><span><strong>Aktuelle Konfiguration</strong><small>{{ store.selectedScenario?.name || 'Kein Szenario ausgewählt' }}</small></span><span aria-hidden="true">›</span></button>
         <input v-model="scenarioQuery" class="search" type="search" aria-label="Szenarien suchen" placeholder="Szenario suchen" />
         <p v-if="!filteredScenarios.length" class="empty">Kein Szenario.</p>
         <div v-for="item in filteredScenarios" :key="item.id" class="scenario-row" :class="{ 'is-selected': item.id === inspectedScenarioId }" @dblclick="requestLoad(item.id)">
@@ -536,9 +545,10 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
           <div class="editor-meta"><span class="help">{{ editing ? stats(editing) : '' }}</span><InfoTip text="Tokenzahl grob aus der Zeichenanzahl geschätzt. Änderungen gelten nach Übernehmen." label="Token-Schätzung erklären" /></div>
         </aside>
       </template>
-      <aside v-if="section === 'scenario' && store.llmDraft" class="panel studio-editor" aria-label="Szenario">
+      <aside v-if="section === 'scenario' && store.llmDraft" class="panel studio-editor scenario-detail" aria-label="Szenario">
+        <button type="button" class="btn scenario-detail-back" @click="scenarioDetailOpen = false">Zurück zur Szenarioliste</button>
         <div class="panel-head with-action">
-          <h2>{{ panelScenario ? 'Szenario' : 'Neues Szenario' }}</h2>
+          <h2>{{ showingStoredScenario ? 'Gespeichertes Szenario' : 'Aktuelle Konfiguration' }}</h2><span v-if="panelScenario && !showingStoredScenario" class="dialog-active">Aktiv</span>
           <div v-if="panelScenario" class="scenario-panel-actions">
             <button v-if="panelScenario.id !== store.selectedScenarioId" type="button" class="btn" @click="requestLoad(panelScenario.id)">Szenario laden</button>
             <button type="button" class="btn-danger icon-btn" :aria-label="`${panelScenario.name} löschen`" title="Szenario löschen" @click="askDeleteScenario(panelScenario)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M8 7l1 13h6l1-13" /></svg></button>
@@ -556,8 +566,9 @@ onUnmounted(() => { rememberView(); window.removeEventListener('keydown', shortc
           <label class="field"><span>Beschreibung</span><input v-model="scenarioDescription" type="text" /></label>
           <div v-for="card in scenarioCards" :key="card.label" class="summary-row"><span>{{ card.label }}</span><strong>{{ card.name }}</strong></div>
           <p class="help">Ausgewählte Promptteile: {{ panelStats.words }} Wörter · ca. {{ panelStats.tokens }} Token</p>
-          <div v-if="store.selectedScenario" class="actions">
-            <button type="button" class="btn-lime" :disabled="scenarioUnchanged" :title="scenarioUnchanged ? 'Die Konfiguration entspricht dem Szenario.' : undefined" @click="updateSelected">Aktualisieren</button>
+          <div class="actions">
+            <button v-if="!store.selectedScenario" type="button" class="btn-lime scenario-detail-trigger" @click="createScenario">Neues Szenario speichern</button>
+            <button v-if="store.selectedScenario" type="button" class="btn-lime" :disabled="scenarioUnchanged" :title="scenarioUnchanged ? 'Die Konfiguration entspricht dem Szenario.' : undefined" @click="updateSelected">Aktualisieren</button>
           </div>
         </template>
       </aside>
