@@ -30,6 +30,8 @@ export interface ScreenState {
   pressNonce: number
   lastAction: { action: string; ok: boolean; error: string | null } | null
   autostartSynced: boolean | null
+  bridgeReady: boolean | null
+  autostartAnswering: boolean | null
 }
 
 export interface GestureRowView {
@@ -64,6 +66,8 @@ export interface ViewState {
   failure: string | null
   connectionState: ConnectionState
   autostartSynced: boolean | null
+  bridgeReady: boolean | null
+  autostartAnswering: boolean | null
 }
 
 const EMPTY_CONNECTION: Connection = {
@@ -85,6 +89,8 @@ export function initialScreen(): ScreenState {
     pressNonce: 0,
     lastAction: null,
     autostartSynced: null,
+    bridgeReady: null,
+    autostartAnswering: null,
   }
 }
 
@@ -155,6 +161,10 @@ export function reduce(state: ScreenState, message: ServerMessage): ScreenState 
       return { ...state, lastAction: { action: message.action, ok: false, error: message.error } }
     case "autostart.changed":
       return { ...state, autostartSynced: message.synced }
+    case "bridge.changed":
+      return { ...state, bridgeReady: message.ready }
+    case "autostart.answering":
+      return { ...state, autostartAnswering: message.answering }
     case "autostart.kept":
     case "known_robots.changed":
       return state
@@ -203,6 +213,8 @@ export function viewOf(state: ScreenState): ViewState {
     failure: state.connection.failure,
     connectionState: state.connection.state,
     autostartSynced: hardwareEnabled ? state.autostartSynced : null,
+    bridgeReady: hardwareEnabled ? state.bridgeReady : null,
+    autostartAnswering: hardwareEnabled ? state.autostartAnswering : null,
   }
 }
 
@@ -226,6 +238,8 @@ function applyPicture(state: ScreenState, picture: Picture): ScreenState {
     presses: {},
     activePresses: {},
     autostartSynced: connected ? picture.autostart_synced ?? null : null,
+    bridgeReady: connected ? picture.bridge_ready ?? null : null,
+    autostartAnswering: connected ? picture.autostart_answering ?? null : null,
   }
 }
 
@@ -240,6 +254,8 @@ function applyConnection(state: ScreenState, connection: Connection): ScreenStat
       presses: {},
       activePresses: {},
       autostartSynced: null,
+      bridgeReady: null,
+      autostartAnswering: null,
     }
   }
   return { ...state, connection: next }

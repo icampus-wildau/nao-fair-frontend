@@ -277,3 +277,30 @@ describe("known robots", () => {
     expect(knownRobotsMatching(robots, "10.")).toEqual(robots)
   })
 })
+
+describe("service warnings", () => {
+  it("shows a missing bridge and a silent autostart only while connected", () => {
+    const connected = reduce(
+      initialScreen(),
+      picture({
+        connection: { state: "connected", address: "192.0.2.10", name: "Milo", failure: null },
+        conversation_state: "idle",
+        transcript: [],
+        bridge_ready: false,
+        autostart_answering: false,
+      }),
+    )
+    expect(viewOf(connected).bridgeReady).toBe(false)
+    expect(viewOf(connected).autostartAnswering).toBe(false)
+    const answered = reduce(connected, { type: "autostart.answering", answering: true })
+    const ready = reduce(answered, { type: "bridge.changed", ready: true })
+    expect(viewOf(ready).bridgeReady).toBe(true)
+    expect(viewOf(ready).autostartAnswering).toBe(true)
+    const disconnected = reduce(ready, {
+      type: "connection.changed",
+      connection: { state: "disconnected", address: "192.0.2.10", name: null, failure: null },
+    })
+    expect(viewOf(disconnected).bridgeReady).toBeNull()
+    expect(viewOf(disconnected).autostartAnswering).toBeNull()
+  })
+})

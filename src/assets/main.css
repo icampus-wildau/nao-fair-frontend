@@ -297,6 +297,9 @@ a.tile { color: inherit; text-decoration: none; }
 .program-row .help { margin: 2px 0 0; }
 .error-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }.usage-list { padding-left: 20px; margin: 12px 0; }
 .recovery-banner { display: flex; align-items: center; gap: 8px; padding: 8px 24px; background: var(--notice-bg); flex: none; }.recovery-banner > span { margin-right: auto; }
+.bridge-warning { margin: 0; padding: 8px 24px; background: var(--notice-bg); flex: none; }
+.bridge-warning a { margin-left: 8px; font-weight: 500; }
+.install-log { margin-top: 12px; max-height: 240px; overflow: auto; padding: 12px; background: #1c2422; color: #e7efe4; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; }
 .speech-composer { flex: 1; min-width: 0; }
 .speech-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; }
 .speech-expand { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--muted); }

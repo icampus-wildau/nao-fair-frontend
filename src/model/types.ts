@@ -114,6 +114,8 @@ export interface Picture {
   active_setup_id: string | null
   autostart_synced?: boolean | null
   known_robots?: KnownRobot[]
+  bridge_ready?: boolean | null
+  autostart_answering?: boolean | null
 }
 
 export type ServerMessage =
@@ -129,6 +131,10 @@ export type ServerMessage =
   | { type: "known_robots.changed"; known_robots: KnownRobot[] }
   | { type: "autostart.changed"; synced: boolean | null }
   | { type: "autostart.kept" }
+  | { type: "bridge.changed"; ready: boolean | null }
+  | { type: "autostart.answering"; answering: boolean | null }
+  | { type: "program.install"; install: { program: string; state: string; error: string; fingerprint: string; previous_fingerprint: string | null; changed: boolean } }
+  | { type: "program.log"; line: string }
 
 export interface TimingRange {
   min: number

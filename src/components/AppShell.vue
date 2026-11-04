@@ -96,6 +96,7 @@ async function speakTest() {
         <RouterLink v-for="item in nav" :key="item.to" :to="item.to" :aria-current="route.path === item.to ? 'page' : undefined">{{ item.label }}</RouterLink>
       </nav>
     </header>
+    <p v-if="store.view.bridgeReady === false" class="bridge-warning" role="status">Die Mikrofonbrücke ist nicht bereit. Das Gespräch ist nicht betriebsbereit. <RouterLink to="/system?abschnitt=programme">Programme installieren</RouterLink></p>
     <dialog v-if="menu" ref="navDialog" class="nav-sheet" :class="{ 'is-closing': menuClosing }" aria-label="Menü" @cancel.prevent="closeMenu" @click="closeMenuOnBackdrop">
       <div class="drawer-head"><strong>NAO Fair</strong><button type="button" class="drawer-close" aria-label="Menü schließen" @click="closeMenu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button></div>
       <nav class="drawer-nav" aria-label="Bereiche">

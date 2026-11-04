@@ -8,6 +8,7 @@ import {
   asConnection,
   asKnownRobots,
   errorText,
+  type ProgramReport,
 } from "../api/client"
 import {
   addressEdited,
@@ -80,6 +81,9 @@ export const useConsole = defineStore("console", () => {
   const pictureSeen = ref(false)
   const systemReport = ref<SystemReport | null>(null)
   const systemError = ref<string | null>(null)
+  const programReport = ref<ProgramReport | null>(null)
+  const programError = ref<string | null>(null)
+  const installLog = ref("")
   const systemLoading = ref(false)
   const backendOutdated = ref(false)
   const textDrafts = ref<Record<string, { name: string; markdown: string }>>({})
@@ -224,6 +228,7 @@ export const useConsole = defineStore("console", () => {
       syncDrafts(previous, originated)
       void loadAppliedContent()
       void loadSystem()
+      if (message.connection.state === "connected") void loadPrograms()
     } else if (message.type === "config.applied") {
       localApply.value = false
       syncDrafts(previous, originated)
@@ -232,6 +237,15 @@ export const useConsole = defineStore("console", () => {
     } else if (message.type === "connection.changed") {
       if (message.connection.state === "connected" || message.connection.failure) pendingConnect.value = false
       address.value = addressFromPicture(address.value, message.connection.address)
+      if (message.connection.state === "connected") void loadPrograms()
+    } else if (message.type === "bridge.changed" || message.type === "autostart.answering") {
+      void loadPrograms()
+    } else if (message.type === "program.install") {
+      if (message.install.state === "downloading") installLog.value = ""
+      if (programReport.value) programReport.value = { ...programReport.value, install: message.install }
+      if (message.install.state === "done" || message.install.state === "failed") void loadPrograms()
+    } else if (message.type === "program.log") {
+      installLog.value = installLog.value ? `${installLog.value}\n${message.line}` : message.line
     } else if (message.type === "known_robots.changed") {
       applyKnownRobots(message.known_robots)
     } else if (message.type === "autostart.kept") {
@@ -285,6 +299,15 @@ export const useConsole = defineStore("console", () => {
       systemError.value = errorText(error)
       backendOutdated.value = /kennt diese Funktion|Versionsinformation/.test(systemError.value)
     } finally { systemLoading.value = false }
+  }
+
+  async function loadPrograms() {
+    try {
+      programReport.value = await api.programs()
+      programError.value = null
+    } catch (error) {
+      programError.value = errorText(error)
+    }
   }
 
   function checkRecovery() {
@@ -662,6 +685,7 @@ export const useConsole = defineStore("console", () => {
     return run(() => api.sendMessage(text), "Nachricht gesendet.")
   }
   function startConversation() {
+    if (view.value.connectionState === "connected" && view.value.bridgeReady !== true) return
     return run(() => api.startConversation(), "Gespräch gestartet.")
   }
   function stopConversation() {
@@ -867,6 +891,7 @@ export const useConsole = defineStore("console", () => {
   return {
     screen,
     systemReport, systemError, systemLoading, backendOutdated, loadSystem,
+    programReport, programError, installLog, loadPrograms,
     textDrafts, scenarioFormDraft, draftBackupEnabled, recovery, recoveryNavigation, restoreDrafts, dismissRecovery,
     view,
     address,

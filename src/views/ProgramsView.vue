@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue"
-import { api, errorText, type ProgramInstall, type ProgramReport, type RobotProgram } from "../api/client"
+import { api, errorText, type RobotProgram } from "../api/client"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
 
-const report = ref<ProgramReport | null>(null)
-const error = ref<string | null>(null)
 const password = ref("")
 const pending = ref<RobotProgram | null>(null)
 const busy = ref(false)
 let timer = 0
+const report = computed(() => store.programReport)
+const error = computed(() => store.programError)
 
 const actions: Record<string, string> = { install: "Installieren", update: "Aktualisieren", reinstall: "Erneut installieren" }
 const runningLabel = (program: RobotProgram) => program.running === true ? "Läuft" : program.running === false ? "Läuft nicht" : "Nicht geprüft"
@@ -22,31 +22,23 @@ const active = computed(() => {
 })
 const confirming = computed(() => pending.value !== null && !active.value)
 
-async function load() {
-  try {
-    report.value = await api.programs()
-    error.value = null
-  } catch (caught) {
-    error.value = errorText(caught)
-  }
-}
-
-function watchInstall(job: ProgramInstall | null) {
+function watchInstall() {
   window.clearInterval(timer)
+  const job = report.value?.install
   if (job && job.state !== "done" && job.state !== "failed") {
-    timer = window.setInterval(() => void load().then(() => watchInstall(report.value?.install ?? null)), 1000)
+    timer = window.setInterval(() => void store.loadPrograms(), 1000)
   }
 }
 
 async function refresh() {
-  await load()
-  watchInstall(report.value?.install ?? null)
+  await store.loadPrograms()
+  watchInstall()
 }
 
 function ask(program: RobotProgram) {
   pending.value = program
   password.value = ""
-  error.value = null
+  store.programError = null
 }
 
 function cancelAsk() {
@@ -66,7 +58,7 @@ async function submitPassword() {
     pending.value = null
     await refresh()
   } catch (caught) {
-    error.value = errorText(caught)
+    store.programError = errorText(caught)
   } finally {
     busy.value = false
   }
@@ -78,7 +70,7 @@ async function decide(accept: boolean) {
     await api.acceptHostKey(accept)
     await refresh()
   } catch (caught) {
-    error.value = errorText(caught)
+    store.programError = errorText(caught)
   } finally {
     busy.value = false
   }
@@ -86,6 +78,7 @@ async function decide(accept: boolean) {
 
 onMounted(() => void refresh())
 watch(() => store.screen.connection.address, () => void refresh())
+watch(() => report.value?.install?.state, () => watchInstall())
 onUnmounted(() => window.clearInterval(timer))
 </script>
 
@@ -135,5 +128,6 @@ onUnmounted(() => window.clearInterval(timer))
     <p v-else-if="active?.state === 'downloading' || active?.state === 'installing'" class="why">Wird installiert …</p>
     <p v-else-if="report?.install?.state === 'failed'" class="why" role="alert">{{ report.install.error }}</p>
     <p v-else-if="report?.install?.state === 'done'" class="why">Die Installation ist abgeschlossen.</p>
+    <pre v-if="store.installLog" class="install-log" aria-label="Installationsausgabe">{{ store.installLog }}</pre>
   </article>
 </template>

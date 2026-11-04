@@ -115,6 +115,7 @@ function chooseAction(action: string | null) {
           <span class="toggle-ui" aria-hidden="true"></span>
           <span>Aktiviert im Autostart <InfoTip :text="AUTOSTART_INFO" label="Autostart erklären" /></span>
         </label>
+        <p v-if="store.view.hardwareEnabled && store.view.autostartAnswering === false" class="why" role="status">Der Autostart-Prozess antwortet nicht. <RouterLink to="/system?abschnitt=programme">Programme installieren</RouterLink></p>
         <p v-if="store.view.hardwareEnabled && store.view.autostartSynced === true" class="why">Der Roboter hat diesen Autostart übernommen.</p>
         <p v-else-if="store.view.hardwareEnabled && store.view.autostartSynced === false" class="why">Der Roboter hat diesen Autostart noch nicht übernommen.</p>
         <p v-if="store.view.hardwareEnabled" class="why">Solange die NAO Fair App verbunden ist, reagieren die Tasten in der App.</p>
