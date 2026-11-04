@@ -1,5 +1,5 @@
 import { TRIGGER_IDS, type TriggerId } from "./triggers"
-import type { Applied, Dialog, GestureBinding, TtsReplacement, SttTerm, TriggerBinding, TimingKey, TimingRange } from "./types"
+import type { Applied, Dialog, GestureBinding, KnownRobot, TtsReplacement, SttTerm, TriggerBinding, TimingKey, TimingRange } from "./types"
 
 export interface RobotDraft {
   volume: number
@@ -42,7 +42,6 @@ export interface InteractionsDraft {
 export interface AddressField {
   value: string
   dirty: boolean
-  remembered: string | null
 }
 
 const DEFAULT_RANGES: Record<TimingKey, TimingRange> = {
@@ -216,23 +215,30 @@ export function isIpv4(value: string): boolean {
   })
 }
 
-export function addressFromPicture(field: AddressField, pictureAddress: string | null): AddressField {
-  if (pictureAddress) {
-    return { value: pictureAddress, dirty: false, remembered: pictureAddress }
-  }
+export function addressFromPicture(field: AddressField, pictureAddress: string | null, knownAddress: string | null = null): AddressField {
+  if (field.dirty && field.value.trim() !== "") return { ...field }
+  if (pictureAddress) return { value: pictureAddress, dirty: false }
   if (field.dirty) return { ...field }
-  return { value: field.remembered ?? "", dirty: false, remembered: field.remembered }
+  if (knownAddress) return { value: knownAddress, dirty: false }
+  return { value: field.value, dirty: false }
 }
 
 export function addressEdited(field: AddressField, value: string): AddressField {
-  if (value.trim() === "") return { value: "", dirty: true, remembered: null }
-  return { value, dirty: true, remembered: field.remembered }
+  return { value, dirty: true }
 }
 
 export function addressUsedForConnect(field: AddressField): AddressField {
   const value = field.value.trim()
-  if (!value) return { value: "", dirty: true, remembered: null }
-  return { value, dirty: false, remembered: value }
+  if (!value) return { value: "", dirty: true }
+  return { value, dirty: false }
+}
+
+export function knownRobotsMatching(robots: KnownRobot[], query: string): KnownRobot[] {
+  const needle = query.trim().toLocaleLowerCase("de")
+  if (!needle) return robots
+  return robots.filter((robot) =>
+    robot.address.toLocaleLowerCase("de").includes(needle) || robot.name.toLocaleLowerCase("de").includes(needle),
+  )
 }
 
 export function reconcileDraft<T>(draft: T, next: T, dirty: boolean, originatedHere: boolean): { draft: T; notice: boolean } {

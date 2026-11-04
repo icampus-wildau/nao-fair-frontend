@@ -91,6 +91,19 @@ export function asConnection(body: unknown): Connection | null {
   }
 }
 
+export function asKnownRobots(value: unknown): { address: string; name: string }[] {
+  if (!Array.isArray(value)) return []
+  const robots: { address: string; name: string }[] = []
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue
+    const record = item as Record<string, unknown>
+    if (typeof record.address !== "string" || !record.address.trim()) continue
+    if (typeof record.name !== "string" || !record.name.trim()) continue
+    robots.push({ address: record.address.trim(), name: record.name.trim() })
+  }
+  return robots
+}
+
 export function asApplied(body: unknown): Applied | null {
   if (!body || typeof body !== "object") return null
   const record = body as Record<string, unknown>
@@ -260,6 +273,7 @@ export const api = {
   references: (id: string) => request<References>(`/api/content/${id}/references`),
   audio: (patch: { volume?: number; speech_speed?: number }) => request<unknown>("/api/robot/audio", { method: "PATCH", body: JSON.stringify(patch) }),
   connect: (address: string) => request<unknown>("/api/robot/connect", { method: "POST", body: JSON.stringify({ address }) }),
+  forgetKnownRobot: (address: string) => request<unknown>("/api/robot/known-robots/remove", { method: "POST", body: JSON.stringify({ address }) }),
   disconnect: () => request<unknown>("/api/robot/disconnect", { method: "POST" }),
   status: () => request<unknown>("/api/robot/status"),
   capabilities: () => request<unknown>("/api/robot/capabilities"),

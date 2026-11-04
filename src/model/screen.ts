@@ -154,6 +154,7 @@ export function reduce(state: ScreenState, message: ServerMessage): ScreenState 
     case "autostart.changed":
       return { ...state, autostartSynced: message.synced }
     case "autostart.kept":
+    case "known_robots.changed":
       return state
     default:
       return state

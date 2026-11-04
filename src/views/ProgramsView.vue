@@ -85,7 +85,7 @@ async function decide(accept: boolean) {
 }
 
 onMounted(() => void refresh())
-watch(() => store.address.remembered, () => void refresh())
+watch(() => store.screen.connection.address, () => void refresh())
 onUnmounted(() => window.clearInterval(timer))
 </script>
 

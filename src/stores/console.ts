@@ -6,6 +6,7 @@ import {
   asApplied,
   asCapabilities,
   asConnection,
+  asKnownRobots,
   errorText,
 } from "../api/client"
 import {
@@ -47,36 +48,17 @@ import {
   type ConfigScreen,
   type ContentItem,
   type ContentKind,
+  type KnownRobot,
   type SecretSlot,
   type SecretSlotId,
   type ServerMessage,
   type TimingKey,
 } from "../model/types"
 
-const ADDRESS_KEY = "nao-fair.address"
-
-function readRemembered(): string | null {
-  try {
-    const value = localStorage.getItem(ADDRESS_KEY)?.trim()
-    return value || null
-  } catch {
-    return null
-  }
-}
-
-function writeRemembered(value: string | null) {
-  try {
-    if (!value) localStorage.removeItem(ADDRESS_KEY)
-    else localStorage.setItem(ADDRESS_KEY, value)
-  } catch {
-    /* Private mode can reject storage. The field still works. */
-  }
-}
-
 export const useConsole = defineStore("console", () => {
-  const remembered = readRemembered()
   const screen = ref(initialScreen())
-  const address = ref<AddressField>({ value: remembered ?? "", dirty: false, remembered })
+  const address = ref<AddressField>({ value: "", dirty: false })
+  const knownRobots = ref<KnownRobot[]>([])
   const addressError = ref<string | null>(null)
   const pendingConnect = ref(false)
   const robotDraft = ref<RobotDraft | null>(null)
@@ -183,8 +165,11 @@ export const useConsole = defineStore("console", () => {
 
   function setAddress(value: string) {
     address.value = addressEdited(address.value, value)
-    writeRemembered(address.value.remembered)
     addressError.value = null
+  }
+
+  function applyKnownRobots(value: unknown) {
+    knownRobots.value = asKnownRobots(value)
   }
 
   function syncDrafts(previous: Applied | null, originated: boolean) {
@@ -232,9 +217,9 @@ export const useConsole = defineStore("console", () => {
     if (message.type === "picture") {
       pictureSeen.value = true
       serverLine.value = null
-      const nextAddress = addressFromPicture(address.value, message.connection.address)
-      address.value = nextAddress
-      writeRemembered(nextAddress.remembered)
+      const known = Array.isArray(message.known_robots) ? asKnownRobots(message.known_robots) : knownRobots.value
+      if (Array.isArray(message.known_robots)) knownRobots.value = known
+      address.value = addressFromPicture(address.value, message.connection.address, message.connection.address ? null : known[0]?.address ?? null)
       if (message.connection.state === "connected" || message.connection.failure) pendingConnect.value = false
       syncDrafts(previous, originated)
       void loadAppliedContent()
@@ -246,9 +231,9 @@ export const useConsole = defineStore("console", () => {
       void loadSystem()
     } else if (message.type === "connection.changed") {
       if (message.connection.state === "connected" || message.connection.failure) pendingConnect.value = false
-      const nextAddress = addressFromPicture(address.value, message.connection.address)
-      address.value = nextAddress
-      writeRemembered(nextAddress.remembered)
+      address.value = addressFromPicture(address.value, message.connection.address)
+    } else if (message.type === "known_robots.changed") {
+      applyKnownRobots(message.known_robots)
     } else if (message.type === "autostart.kept") {
       notice.value = "Übernommen. Der Roboter hat den bisherigen Autostart behalten."
     } else if (message.type === "action.failed") {
@@ -425,6 +410,7 @@ export const useConsole = defineStore("console", () => {
   function start() {
     if (started) return
     started = true
+    try { localStorage.removeItem("nao-fair.address") } catch { /* The browser copy is no longer read. */ }
     connectSocket()
     void loadCapabilities()
     void loadLibrary()
@@ -450,7 +436,6 @@ export const useConsole = defineStore("console", () => {
       return
     }
     address.value = addressUsedForConnect({ ...address.value, value })
-    writeRemembered(address.value.remembered)
     addressError.value = null
     pendingConnect.value = true
     serverLine.value = null
@@ -459,9 +444,19 @@ export const useConsole = defineStore("console", () => {
       const body = await api.connect(value)
       const connection = asConnection(body)
       if (connection) ingest({ type: "connection.changed", connection })
+      if (body && typeof body === "object" && "known_robots" in body) applyKnownRobots((body as { known_robots: unknown }).known_robots)
     } catch (error) {
       pendingConnect.value = false
       serverLine.value = errorText(error)
+    }
+  }
+
+  async function forgetKnownRobot(robotAddress: string) {
+    try {
+      const body = await api.forgetKnownRobot(robotAddress)
+      if (body && typeof body === "object" && "known_robots" in body) applyKnownRobots((body as { known_robots: unknown }).known_robots)
+    } catch (error) {
+      setFeedback(false, errorText(error))
     }
   }
 
@@ -868,6 +863,7 @@ export const useConsole = defineStore("console", () => {
     textDrafts, scenarioFormDraft, draftBackupEnabled, recovery, recoveryNavigation, restoreDrafts, dismissRecovery,
     view,
     address,
+    knownRobots,
     addressError,
     pendingConnect,
     shownFailure,
@@ -901,6 +897,7 @@ export const useConsole = defineStore("console", () => {
     start,
     ingest,
     setAddress,
+    forgetKnownRobot,
     connect,
     disconnect,
     dismissNotice,

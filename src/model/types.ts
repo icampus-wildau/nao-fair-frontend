@@ -14,6 +14,11 @@ export interface Connection {
   redialing?: boolean
 }
 
+export interface KnownRobot {
+  address: string
+  name: string
+}
+
 export interface TranscriptLine {
   id: string
   speaker: Speaker
@@ -106,6 +111,7 @@ export interface Picture {
   applied: Applied
   active_setup_id: string | null
   autostart_synced?: boolean | null
+  known_robots?: KnownRobot[]
 }
 
 export type ServerMessage =
@@ -118,6 +124,7 @@ export type ServerMessage =
   | { type: "action.completed"; action: string }
   | { type: "action.failed"; action: string; error: string }
   | { type: "connection.changed"; connection: Connection }
+  | { type: "known_robots.changed"; known_robots: KnownRobot[] }
   | { type: "autostart.changed"; synced: boolean | null }
   | { type: "autostart.kept" }
 

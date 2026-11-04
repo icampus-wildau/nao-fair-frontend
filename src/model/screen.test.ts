@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addressEdited, addressFromPicture, type AddressField } from "./drafts"
+import { addressEdited, addressFromPicture, knownRobotsMatching, type AddressField } from "./drafts"
 import { clearActivePress, initialScreen, reduce, viewOf, type ScreenState } from "./screen"
 import { TRIGGER_IDS } from "./triggers"
 import type { Applied, Picture, ServerMessage, TriggerBinding } from "./types"
@@ -237,27 +237,43 @@ describe("screen model", () => {
 })
 
 describe("address field", () => {
-  const remembered: AddressField = { value: "10.0.0.8", dirty: false, remembered: "10.0.0.8" }
+  const filled: AddressField = { value: "10.0.0.8", dirty: false }
 
-  it("fills from the picture and remembers that address", () => {
-    const next = addressFromPicture({ value: "", dirty: false, remembered: null }, "10.1.2.3")
-    expect(next).toEqual({ value: "10.1.2.3", dirty: false, remembered: "10.1.2.3" })
+  it("fills from the picture address", () => {
+    const next = addressFromPicture({ value: "", dirty: false }, "10.1.2.3", "10.0.0.8")
+    expect(next).toEqual({ value: "10.1.2.3", dirty: false })
   })
 
-  it("keeps a typed draft until a picture still carrying an address replaces it", () => {
-    const typed = addressEdited(remembered, "10.9.9.9")
-    expect(typed.dirty).toBe(true)
-    expect(typed.remembered).toBe("10.0.0.8")
-    const kept = addressFromPicture(typed, null)
-    expect(kept.value).toBe("10.9.9.9")
-    const filled = addressFromPicture(typed, "10.0.0.8")
-    expect(filled.value).toBe("10.0.0.8")
-    expect(filled.dirty).toBe(false)
+  it("uses the newest known robot when the picture has no address", () => {
+    const next = addressFromPicture({ value: "", dirty: false }, null, "10.1.2.3")
+    expect(next).toEqual({ value: "10.1.2.3", dirty: false })
   })
 
-  it("clears the remembered address when the field is cleared", () => {
-    const cleared = addressEdited(remembered, "")
-    expect(cleared).toEqual({ value: "", dirty: true, remembered: null })
-    expect(addressFromPicture(cleared, null).value).toBe("")
+  it("keeps a typed draft when a picture arrives", () => {
+    const typed = addressEdited(filled, "10.9.9.9")
+    expect(typed).toEqual({ value: "10.9.9.9", dirty: true })
+    expect(addressFromPicture(typed, null, "10.0.0.8")).toEqual(typed)
+    expect(addressFromPicture(typed, "10.0.0.8")).toEqual(typed)
+  })
+
+  it("leaves a cleared field empty until a picture brings an address", () => {
+    const cleared = addressEdited(filled, "")
+    expect(cleared).toEqual({ value: "", dirty: true })
+    expect(addressFromPicture(cleared, null, "10.0.0.8")).toEqual({ value: "", dirty: true })
+    expect(addressFromPicture(cleared, "10.4.4.4", "10.0.0.8")).toEqual({ value: "10.4.4.4", dirty: false })
+  })
+})
+
+describe("known robots", () => {
+  const robots = [
+    { address: "10.0.0.8", name: "Ada" },
+    { address: "10.1.2.3", name: "Milo" },
+  ]
+
+  it("matches part of the address or the name", () => {
+    expect(knownRobotsMatching(robots, "")).toEqual(robots)
+    expect(knownRobotsMatching(robots, "0.8")).toEqual([robots[0]])
+    expect(knownRobotsMatching(robots, "mil")).toEqual([robots[1]])
+    expect(knownRobotsMatching(robots, "10.")).toEqual(robots)
   })
 })
