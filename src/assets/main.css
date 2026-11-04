@@ -384,9 +384,9 @@ a.tile { color: inherit; text-decoration: none; }
   .transcript-panel.is-fill > .transcript-tools, .transcript-panel.is-fill > .scroll-back { flex: none; }
   .transcript-panel.is-fill > .transcript { flex: 1 0 140px; height: auto; max-height: none; resize: none; }
   .transcript-panel.is-fill > .scroll-back { align-self: flex-start; }
-  .dashboard-conversation .transcript-panel.is-fill { flex: 1 1 auto; min-height: min-content; overflow: hidden; }
+  .dashboard-conversation .transcript-panel.is-fill { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   .dashboard-conversation .transcript-panel.is-fill > .message-form { flex: none; }
-  .dashboard-conversation .transcript-panel.is-fill > .transcript { flex: 1 1 auto; min-height: 180px; overflow: auto; }
+  .dashboard-conversation .transcript-panel.is-fill > .transcript { flex: 1 1 auto; min-height: 0; overflow: auto; }
 
   .system-page { display: flex; flex-direction: column; height: 100%; }
   .system-page > .studio { flex: 1; min-height: 0; }

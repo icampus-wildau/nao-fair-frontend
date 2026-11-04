@@ -1,94 +1,58 @@
-# NAO Fair
+# nao-fair-frontend
 
-Deutsche Bedienkonsole für einen NAO am Messestand.
+*Operator UI for one NAO at a fair or exhibition.*
 
-## Installation und Start
+![Node](https://img.shields.io/badge/node-20.19%20%7C%2022.12%2B-blue?style=flat-square)
+![CI](https://img.shields.io/github/actions/workflow/status/icampus-wildau/nao-fair-frontend/ci.yml?style=flat-square&label=CI)
+![License: Apache 2.0](https://img.shields.io/badge/license-Apache%20License%202.0-blue)
 
-Installation, lokaler Start, Entwicklungsstart und Produktionscontainer stehen im [nao-fair Repository](https://github.com/icampus-wildau/nao-fair). Benötigt werden Git, npm und Node.js 20.19+ oder 22.12+.
+Vue UI for one robot. Install, local start, and the production container are in the [nao-fair repository](https://github.com/icampus-wildau/nao-fair). A robot is not required to edit and apply configuration.
+
+## Start
+
+Needs Git, pnpm, and Node.js 20.19+ or 22.12+.
 
 ```bash
 git clone --recurse-submodules https://github.com/icampus-wildau/nao-fair.git
 cd nao-fair
 ./install.sh
-./start-nao-fair-dev.sh
+
+# Run the UI
+./start-nao-fair.sh       # built UI at http://127.0.0.1:8000
+
+# ... or start in development mode
+./start-nao-fair-dev.sh   # http://127.0.0.1:5173, API stays on port 8000
 ```
 
-Die Entwicklungsumgebung öffnet unter [http://127.0.0.1:5173](http://127.0.0.1:5173). `./start-nao-fair.sh` liefert die gebaute Oberfläche unter [http://127.0.0.1:8000](http://127.0.0.1:8000). Ein Roboter ist zum Bearbeiten und Übernehmen der Konfiguration nicht nötig.
-
-Unter **System → Tests** testet **Mikrofontest starten** die übernommene Pipeline
-ohne NAO, mit Transkript, Eingangspegel und Browser-Sprachausgabe. Das verwendete
-Setup und der Konfigurationsstand stehen daneben. Ohne Roboterverbindung führt
-im Dashboard **Gespräch ohne NAO testen** direkt dorthin. Das Öffnen der Tests
-startet das Mikrofon noch nicht.
-Voraussetzungen sind die [Browser-Pipeline-Pakete des Servers](https://github.com/icampus-wildau/nao-fair-server#test-the-conversation-without-a-nao),
-die benötigten API-Schlüssel und Mikrofonfreigabe über localhost oder HTTPS.
-**Test beenden** oder das Verlassen des Testbereichs gibt das Mikrofon frei.
-Das Dashboard zeigt das Roboter-Gespräch ohne Audioquellen-Auswahl und ohne
-Transkript-Suche; Kopieren und Export bleiben im Transkript-Menü verfügbar.
-
-Der Entwicklungsserver leitet `/api` einschließlich WebSocket zum Backend auf Port 8000 weiter.
-`NAO_FAIR_API_URL` überschreibt das Proxy-Ziel. `npm run build` erzeugt `dist/`,
-das der Fair-Server beim nächsten Start automatisch ausliefert. `npm run dev` und
-`npm run build` laufen auf dem Host, auch wenn der Server im Dev Container läuft.
-Der Container teilt das Host-Netz, daher bleibt das Proxy-Ziel `127.0.0.1:8000`.
-
-## Prüfungen ohne Roboter
+This directory alone, when the server is already running:
 
 ```bash
-npm test
-npm run typecheck
-npm run test:e2e
+pnpm install --frozen-lockfile
+pnpm run dev     # proxies /api, including WebSocket, to the backend
+pnpm run build   # writes dist/; the fair server serves it on the next start
 ```
 
-Die Browserprüfung baut den Produktionsclient und startet selbst einen Testserver
-auf Port 8001 sowie eine Vorschau auf Port 4183. Beide Ports müssen frei sein.
-Der Testserver verwendet ein temporäres Verzeichnis und keine gespeicherten
-Schlüssel oder Daten des Bedieners. Er ist ausschließlich Teil der Tests.
+`NAO_FAIR_API_URL` overrides the proxy target. The default is `http://127.0.0.1:8000`. `pnpm run dev` and `pnpm run build` run on the host, even when the server is in the Dev Container. The container shares the host network.
 
-Benötigt werden die Python-Umgebung des benachbarten `nao-fair-server` und ein
-Chromium-Browser. Installiertes Chromium oder Brave wird automatisch erkannt;
-alternativ `CHROME_PATH` setzen oder `npm exec playwright install chromium` ausführen.
-`NAO_FAIR_TEST_PYTHON` kann den Python-Pfad überschreiben. Standardmäßig wird auf Windows `.venv/Scripts/python.exe` und auf Linux `.venv/bin/python` im benachbarten Server-Checkout verwendet. Für ein Backend in WSL die Browserprüfung ebenfalls in WSL ausführen. Beispiel für eine andere Windows-Umgebung in PowerShell:
+## Conversation without a NAO
+
+Under **System → Tests**, **Mikrofontest starten** runs the applied pipeline with a transcript, input level, and browser speech. Opening the tests does not start the microphone. **Test beenden**, or leaving the test area, releases it. With no robot connected, **Gespräch ohne NAO testen** on the dashboard opens that screen.
+
+Requirements are the server's [browser pipeline packages](https://github.com/icampus-wildau/nao-fair-server#test-the-conversation-without-a-nao), the API keys, and microphone permission on localhost or HTTPS.
+
+## Checks
+
+```bash
+pnpm test
+pnpm run typecheck
+pnpm run test:e2e
+```
+
+`pnpm run test:e2e` builds the production client and starts a test server on port 8001 and a preview on port 4183. Both ports must be free. The test server uses a temporary directory and no stored secrets.
+
+It needs the Python environment of the neighboring `nao-fair-server` checkout and Chromium. Installed Chromium or Brave is detected. Otherwise set `CHROME_PATH`, or run `pnpm exec playwright install chromium`. `NAO_FAIR_TEST_PYTHON` overrides the Python path. The default is `.venv/Scripts/python.exe` on Windows and `.venv/bin/python` on Linux, in the neighboring server checkout. Run the browser check in WSL when the backend is in WSL.
 
 ```powershell
 $env:NAO_FAIR_TEST_PYTHON = "C:\nao-fair\nao-fair-server\.venv\Scripts\python.exe"
-npm run test:e2e
+pnpm run test:e2e
 ```
-
-Geprüft werden Offline-Bearbeitung, Übernehmen/Zurücksetzen, Presets und Setups,
-Schlüssel ohne Rückgabe des Geheimnisses sowie Zustände, Transkript und Sensoren
-über einen ausschließlich im Testserver gestarteten Treiber. Screenshots aller
-sechs Ansichten in drei Breiten liegen nach dem Lauf unter
-`../.taste-skill/after/screens/`.
-
-## Bedienverhalten
-
-Auf dem Desktop reichen Dashboard und System-Arbeitsflächen bis zum unteren
-Fensterrand. Inhalte bleiben oben kompakt; die Transkripte im Dashboard und unter
-System → Tests nutzen die zusätzliche Höhe und scrollen längere Gespräche intern.
-In kurzen Fenstern und auf kleinen Displays bleiben alle Gruppen über die
-Seitenscrollung erreichbar. Dort lässt sich die Transkripthöhe weiterhin verändern.
-
-Lautstärke und Sprechtempo werden beim Loslassen des Sliders direkt gespeichert,
-auch ohne verbundenen Roboter. Andere Konfigurationsänderungen werden im unteren
-Fensterbereich mit **Übernehmen** bzw. **Zurücksetzen** bestätigt. Ein bestätigter
-Wechsel des Haupttabs verwirft offene Entwürfe. Innerhalb des LLM Studios bleiben
-Entwürfe beim Wechsel zwischen Bausteinen und Untertabs erhalten.
-
-Ein Klick wählt einen Textbaustein; ein Doppelklick oder **Bearbeiten** im Menü
-öffnet den einklappbaren Editor. Der Trenner lässt sich ziehen oder mit den
-Pfeiltasten verschieben. Informationen hinter Info-Icons erscheinen nach 600 ms
-oder per Klick als Dialog. Verbindungsfehler stehen direkt am Status.
-
-Weitere Vorschläge stehen in der [UX-Nachbetrachtung](docs/ux-review-2026-10-29.md).
-Das spätere Mobile-Header-Thema ist als [Issue #1](https://github.com/icampus-wildau/nao-fair-frontend/issues/1) erfasst.
-
-
-Die [zweite UX-Runde](docs/ux-implementation-2026-10-29.md) ergänzt einen zentralen
-**Presets**-Untertab, den Bereich **System** mit Diagnose und Schlüsseln, lokale
-Entwurfswiederherstellung sowie Such-, Import- und Schnellwahlfunktionen.
-Vergleiche bleiben hinter Info-Icons. Datenlisten sind standardmäßig alphabetisch;
-TTS-Ausführungspriorität und Gesprächsreihenfolge bleiben erhalten.
-
-**System** zeigt API-Version und Serverstart; eine veraltete
-API erzeugt einen verständlichen Hinweis statt „Not Found“.

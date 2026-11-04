@@ -13,14 +13,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run typecheck
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm run typecheck
+      - run: pnpm run build
   browser:
     runs-on: ubuntu-latest
     steps:
@@ -31,17 +32,20 @@ jobs:
         with:
           repository: icampus-wildau/nao-fair-server
           path: nao-fair-server
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: nao-fair-frontend/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: nao-fair-frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: nao-fair-frontend/pnpm-lock.yaml
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked --extra dev
         working-directory: nao-fair-server
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
         working-directory: nao-fair-frontend
-      - run: npx playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
         working-directory: nao-fair-frontend
-      - run: npm run test:e2e
+      - run: pnpm run test:e2e
         working-directory: nao-fair-frontend
