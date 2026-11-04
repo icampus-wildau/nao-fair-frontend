@@ -7,18 +7,21 @@ import { stopIcon, volumeIcon } from "../icons"
 import InfoTip from "../components/InfoTip.vue"
 import ApplyBar from "../components/ApplyBar.vue"
 import SubNavigation from "../components/SubNavigation.vue"
+import TriggerList from "../components/TriggerList.vue"
 import { robotDraftFrom } from "../model/drafts"
 import { localRef } from "../model/local-state"
+import { mappingCount } from "../model/scenario"
 import { MOTIONS } from "../model/triggers"
 import { TIMING_FIELDS } from "../model/types"
 import { useConsole } from "../stores/console"
 
-type SectionId = "texte" | "sprache" | "bewegung"
+type SectionId = "texte" | "sprache" | "bewegung" | "sensoren"
 type Phrase = { text: string; pinned: boolean; used: number }
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "sprache", label: "Sprache & Audio" },
   { id: "texte", label: "Vorgefertigte Texte" },
   { id: "bewegung", label: "Bewegung" },
+  { id: "sensoren", label: "Sensoren" },
 ]
 const store = useConsole()
 const route = useRoute()
@@ -34,6 +37,8 @@ const testPhrase = ref("")
 const baseline = computed(() => (store.screen.applied ? robotDraftFrom(store.screen.applied) : null))
 const orderedPhrases = computed(() => [...phrases.value].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.text.localeCompare(b.text, "de")))
 const phraseSplit = computed(() => orderedPhrases.value.findIndex((row, index) => row.pinned && orderedPhrases.value[index + 1] && !orderedPhrases.value[index + 1]!.pinned))
+const sensorRows = computed(() => store.capabilities ? store.view.triggers.filter((row) => store.capabilities!.sensors.includes(row.id)) : [])
+const autostartOn = computed(() => (store.screen.applied ? store.screen.applied.autostart_enabled !== false : null))
 
 const languages = computed(() => {
   const current = store.robotDraft?.tts_language
@@ -67,6 +72,12 @@ function summary(id: SectionId): string {
     return count === 1 ? "1 Text" : count ? `${count} Texte` : "Keine Texte"
   }
   if (id === "sprache") return languages.value.find((item) => item.id === store.robotDraft?.tts_language)?.label ?? "—"
+  if (id === "sensoren") {
+    const triggers = store.screen.applied?.triggers
+    if (!triggers) return "—"
+    const count = mappingCount(triggers)
+    return count === 1 ? "1 Zuordnung" : `${count} Zuordnungen`
+  }
   return postures.value.find((item) => item.id === store.robotDraft?.posture)?.label ?? "—"
 }
 
@@ -273,6 +284,26 @@ async function testSpeech() {
             Bewegung stoppen
           </button>
         </div>
+      </article>
+
+      <article v-show="section === 'sensoren'" class="panel studio-main robot-pane-sensoren">
+        <div class="panel-head with-action">
+          <h2>Sensoren</h2>
+          <RouterLink class="btn" to="/llm?abschnitt=interactions">Zuordnungen bearbeiten</RouterLink>
+        </div>
+        <p class="help">Zuordnungen werden im Studio bearbeitet.</p>
+        <p v-if="!store.screen.applied" class="why">Die Zuordnungen erscheinen, sobald der Server eine Konfiguration schickt.</p>
+        <template v-else>
+          <section class="sensor-status" aria-label="Autostart">
+            <p class="why">{{ autostartOn ? "Autostart ist aktiv." : "Autostart ist aus." }}</p>
+            <p v-if="store.view.hardwareEnabled && store.view.autostartSynced === true" class="why">Der Roboter hat diesen Autostart übernommen.</p>
+            <p v-else-if="store.view.hardwareEnabled && store.view.autostartSynced === false" class="why">Der Roboter hat diesen Autostart noch nicht übernommen.</p>
+            <p v-if="store.view.hardwareEnabled" class="why">Solange die NAO Fair App verbunden ist, reagieren die Tasten in der App.</p>
+            <p v-if="store.interactionDirty" class="why">Im Studio liegen noch nicht übernommene Zuordnungen.</p>
+          </section>
+          <TriggerList :rows="sensorRows" dashboard />
+          <p v-if="!sensorRows.length" class="empty">Keine Sensoren gemeldet.</p>
+        </template>
       </article>
     </div>
   </section>

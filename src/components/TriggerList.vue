@@ -3,7 +3,9 @@ import { computed } from 'vue'
 import { bindingLabel, compareTriggerIds, type GestureId, type TriggerId } from '../model/triggers'
 import type { GestureRowView, TriggerRowView } from '../model/screen'
 import type { TriggerBinding } from '../model/types'
+import { useConsole } from '../stores/console'
 const props = defineProps<{ rows: TriggerRowView[]; selectable?: boolean; selected?: { id: TriggerId; gesture: GestureId } | null; bindings?: Partial<Record<TriggerId, TriggerBinding>>; dashboard?: boolean }>()
+const store = useConsole()
 const sortedRows = computed(() => [...props.rows].sort((a, b) => compareTriggerIds(a.id, b.id)))
 const emit = defineEmits<{ select: [{ id: TriggerId; gesture: GestureId }]; enable: [TriggerId, GestureId, boolean] }>()
 function chosen(row: TriggerRowView, gesture: GestureId) {
@@ -37,9 +39,13 @@ function onGestureKeydown(event: KeyboardEvent, row: TriggerRowView, gesture: Ge
   event.preventDefault()
   selectGesture(row, gesture)
 }
+function playGesture(row: TriggerRowView, gesture: GestureRowView) {
+  if (!store.view.hardwareEnabled || !gesture.action) return
+  void store.testGesture(row.id, gesture.id, { action: gesture.action, motion: gesture.motion, phrase: gesture.phrase })
+}
 </script>
 <template>
-  <div class="trigger-list">
+  <div class="trigger-list" :class="{ 'is-overview': dashboard }">
     <div v-for="row in sortedRows" :key="row.id" class="sensor sensor-group" :data-trigger="row.id" :data-pressed="row.pressed ? 'true' : 'false'">
       <span v-if="row.pressed" :key="row.pressNonce" class="sensor-flash" aria-hidden="true"></span>
       <div class="sensor-body">
@@ -71,6 +77,9 @@ function onGestureKeydown(event: KeyboardEvent, row: TriggerRowView, gesture: Ge
           <UTooltip v-if="gesture.action === 'speak'" :text="spokenText(gesture)" :delay-duration="600" :content="{ side: 'top' }">
             <span class="sensor-phrase" :class="{ 'has-phrase': !!spokenPhrase(gesture) }" :aria-label="`Wortlaut für ${row.label}`">{{ spokenPreview(gesture) }}</span>
           </UTooltip>
+          <button v-if="gesture.action" type="button" class="gesture-play" data-hardware="test" :aria-label="`${row.label}, ${gesture.label} abspielen`" :title="store.view.hardwareEnabled ? `${gesture.label} abspielen` : 'Kein Roboter verbunden.'" :disabled="!store.view.hardwareEnabled" @click.stop="playGesture(row, gesture)" @keydown.stop>
+            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+          </button>
         </div>
       </div>
     </div>

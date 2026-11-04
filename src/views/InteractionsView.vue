@@ -121,7 +121,7 @@ function chooseAction(action: string | null) {
                 </button>
               </div>
             </div>
-            <p v-if="autostartHint(binding.action)" class="why">{{ autostartHint(binding.action) }}</p>
+            <p v-if="autostartHint(binding.action)" class="action-hint"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/></svg><span>{{ autostartHint(binding.action) }}</span></p>
             <label v-if="binding.action === 'speak'" class="field">
               <span>Wortlaut</span>
               <textarea :value="binding.phrase" :aria-label="`Wortlaut ${gestureLabel}`" @input="store.patchGesture(selected.id, selected.gesture, { phrase: ($event.target as HTMLTextAreaElement).value })"></textarea>

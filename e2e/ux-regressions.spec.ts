@@ -132,7 +132,22 @@ test('speech text tooltip waits at least 500ms before showing', async ({ page })
   await page.getByRole('button', { name: 'Aktion Tippen', exact: true }).click()
   await page.getByRole('option', { name: 'Text sprechen', exact: true }).click()
   await page.getByRole('textbox', { name: 'Wortlaut Tippen', exact: true }).fill('Willkommen in Wildau.')
+  await page.locator('[data-trigger="front_head"] [data-gesture="tap"] .sensor-choice').click()
+  await page.getByRole('button', { name: 'Aktion Tippen', exact: true }).click()
+  await page.getByRole('option', { name: 'Sprechen stoppen', exact: true }).click()
   const info = page.locator('[data-trigger="middle_head"] [data-gesture="tap"] .sensor-phrase')
+  const alignment = await page.locator('.interaction-list').evaluate((list) => {
+    const phraseRow = list.querySelector('[data-trigger="middle_head"] [data-gesture="tap"]')!
+    const actionRow = list.querySelector('[data-trigger="front_head"] [data-gesture="tap"]')!
+    const name = phraseRow.querySelector('.sensor-name')!.getBoundingClientRect()
+    const phrase = phraseRow.querySelector('.sensor-phrase')!.getBoundingClientRect()
+    const play = phraseRow.querySelector('.gesture-play')!.getBoundingClientRect()
+    const action = actionRow.querySelector('.sensor-action')!.getBoundingClientRect()
+    return { nameRight: name.right, phraseLeft: phrase.left, phraseRight: phrase.right, playLeft: play.left, actionRight: action.right }
+  })
+  expect(alignment.phraseLeft).toBeGreaterThan(alignment.nameRight + 24)
+  expect(alignment.playLeft).toBeGreaterThanOrEqual(alignment.phraseRight - 1)
+  expect(Math.abs(alignment.phraseRight - 2 - alignment.actionRight)).toBeLessThanOrEqual(1)
   await info.hover()
   await page.waitForTimeout(450)
   await expect(page.getByRole('tooltip')).toHaveCount(0)

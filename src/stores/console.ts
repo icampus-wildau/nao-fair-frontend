@@ -684,8 +684,8 @@ export const useConsole = defineStore("console", () => {
     return run(() => api.stopMotion(), "Bewegung gestoppt.")
   }
 
-  async function testGesture(id: TriggerId, gesture: GestureId) {
-    const binding = interactionDraft.value?.triggers[id]?.[gesture]
+  async function testGesture(id: TriggerId, gesture: GestureId, source?: Pick<GestureBinding, "action" | "phrase" | "motion">) {
+    const binding = source ?? interactionDraft.value?.triggers[id]?.[gesture]
     if (!binding?.action) {
       setFeedback(false, "Diesem Auslöser ist keine Aktion zugeordnet.")
       return
