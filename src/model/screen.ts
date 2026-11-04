@@ -39,6 +39,8 @@ export interface GestureRowView {
   motion: string | null
   enabled: boolean
   phrase: string
+  delivery: "plain" | "motion" | "animated"
+  yield_next: boolean
 }
 
 export interface TriggerRowView {
@@ -161,6 +163,10 @@ export function reduce(state: ScreenState, message: ServerMessage): ScreenState 
   }
 }
 
+function rowDelivery(value: string | null | undefined): GestureRowView["delivery"] {
+  return value === "motion" || value === "animated" ? value : "plain"
+}
+
 export function viewOf(state: ScreenState): ViewState {
   const hardwareEnabled = state.connection.state === "connected"
   const conversationState: ConversationState = hardwareEnabled ? state.conversationState : "idle"
@@ -179,6 +185,8 @@ export function viewOf(state: ScreenState): ViewState {
         motion: trigger?.[gesture]?.motion ?? null,
         enabled: trigger?.[gesture]?.enabled !== false,
         phrase: trigger?.[gesture]?.phrase ?? "",
+        delivery: rowDelivery(trigger?.[gesture]?.delivery),
+        yield_next: trigger?.[gesture]?.yield_next !== false,
       }))
       return {
         id,

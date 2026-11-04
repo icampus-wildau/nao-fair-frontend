@@ -25,7 +25,7 @@ describe("loading another scenario", () => {
 
 describe("mapping count", () => {
   it("counts triggers that have an action", () => {
-    const gesture = { phrase: "", voice: null, motion: null, enabled: true }
+    const gesture = { phrase: "", voice: null, motion: null, enabled: true, delivery: "plain" as const, yield_next: true }
     expect(mappingCount({
       head: { tap: { ...gesture, action: "wave" }, double_tap: { ...gesture, action: null }, long_press: { ...gesture, action: "dialog_next" } },
       hand: { tap: { ...gesture, action: null }, double_tap: { ...gesture, action: null }, long_press: { ...gesture, action: null } },

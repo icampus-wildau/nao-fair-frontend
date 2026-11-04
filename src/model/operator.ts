@@ -11,7 +11,7 @@ export const FIELD_LABELS: Record<string, string> = {
   listening_timeout_secs: 'Zuhör-Timeout', context_reset_timeout_secs: 'Kontext zurücksetzen bei Inaktivität nach', thinking_timeout_secs: 'Max. LLM-Antwortzeit', unmute_delay_secs: 'Mikrofon-Reaktivierung nach TTS',
   llm_model: 'Modell', temperature: 'Temperatur', max_tokens: 'Maximale Antwort', gladia_region: 'Gladia-Region', gladia_endpointing: 'Endpunktung', gladia_max_utterance_secs: 'Maximale Äußerung',
   gladia_audio_enhancer: 'Audioverbesserung', gladia_language: 'Erkennungssprache', system_prompt_id: 'System-Prompt', knowledge_ids: 'Hintergrundwissen', local_context_id: 'Örtlicher Kontext', personality_id: 'Persönlichkeit',
-  tts_replacements: 'TTS-Ersetzungen', stt_vocabulary: 'STT-Vokabular', triggers: 'Sensorzuordnungen', dialogs: 'Dialoge', active_dialog_id: 'Aktiver Dialog', autostart_enabled: 'Aktiviert im Autostart', name: 'Name', description: 'Beschreibung', slots: 'Preset-Auswahl',
+  tts_replacements: 'TTS-Ersetzungen', stt_vocabulary: 'STT-Vokabular', triggers: 'Sensorzuordnungen', dialogs: 'Dialoge', active_dialog_id: 'Aktiver Dialog', autostart_enabled: 'Aktiviert im Autostart', name: 'Name', description: 'Beschreibung', slots: 'Preset-Auswahl', delivery: 'Wiedergabe', yield_next: 'Laufende Zeile nicht unterbrechen', phrase: 'Wortlaut',
 }
 export function valueLabel(value: unknown, library: readonly { id: string; name: string }[] = []): string {
   if (value === null || value === undefined || value === '') return '—'

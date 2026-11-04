@@ -34,6 +34,8 @@ export interface GestureBinding {
   voice: string | null
   motion: string | null
   enabled: boolean
+  delivery: DialogDelivery
+  yield_next: boolean
 }
 
 export interface TriggerBinding {

@@ -3,7 +3,8 @@ import { computed, nextTick, onUnmounted, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import InfoTip from "../components/InfoTip.vue"
 import TriggerList from "../components/TriggerList.vue"
-import { ACTION_GROUPS, ACTION_NONE, AUTOSTART_INFO, GESTURE_IDS, GESTURE_LABELS, MOTIONS, actionLabel, autostartHint, isGestureId, isTriggerId, type GestureId, type TriggerId } from "../model/triggers"
+import { ACTION_GROUPS, ACTION_NONE, AUTOSTART_INFO, GESTURE_IDS, GESTURE_LABELS, LINE_MOTIONS, MOTIONS, actionLabel, autostartHint, isGestureId, isTriggerId, type GestureId, type TriggerId } from "../model/triggers"
+import type { DialogDelivery } from "../model/types"
 import type { GestureRowView, TriggerRowView } from "../model/screen"
 import { useConsole } from "../stores/console"
 
@@ -26,6 +27,8 @@ const rows = computed<TriggerRowView[]>(() =>
       motion: trigger?.[gesture]?.motion ?? null,
       enabled: trigger?.[gesture]?.enabled !== false,
       phrase: trigger?.[gesture]?.phrase ?? "",
+      delivery: trigger?.[gesture]?.delivery === "motion" || trigger?.[gesture]?.delivery === "animated" ? trigger[gesture].delivery : "plain" as const,
+      yield_next: trigger?.[gesture]?.yield_next !== false,
     }))
     return { ...row, gestures, action: gestures[0]?.action ?? null, motion: gestures[0]?.motion ?? null }
   }),
@@ -142,9 +145,28 @@ function chooseAction(action: string | null) {
               </div>
             </div>
             <p v-if="autostartHint(binding.action)" class="action-hint"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 8h.01"/></svg><span>{{ autostartHint(binding.action) }}</span></p>
-            <label v-if="binding.action === 'speak'" class="field">
+            <label v-if="binding.action === 'speak' || binding.action === 'dialog_reset'" class="field">
               <span>Wortlaut</span>
               <textarea :value="binding.phrase" :aria-label="`Wortlaut ${gestureLabel}`" @input="store.patchGesture(selected.id, selected.gesture, { phrase: ($event.target as HTMLTextAreaElement).value })"></textarea>
+            </label>
+            <label v-if="binding.action === 'speak'" class="field">
+              <span>Wiedergabe</span>
+              <select :aria-label="`Wiedergabe ${gestureLabel}`" :value="binding.delivery || 'plain'" @change="store.patchGesture(selected.id, selected.gesture, { delivery: ($event.target as HTMLSelectElement).value as DialogDelivery })">
+                <option value="plain">Nur sprechen</option>
+                <option value="motion">Mit Bewegung</option>
+                <option value="animated">Animiertes Sprechen</option>
+              </select>
+            </label>
+            <label v-if="binding.action === 'speak' && binding.delivery === 'motion'" class="field">
+              <span>Bewegung</span>
+              <select :aria-label="`Bewegung ${gestureLabel}`" :value="binding.motion || 'nod'" @change="store.patchGesture(selected.id, selected.gesture, { motion: ($event.target as HTMLSelectElement).value })">
+                <option v-for="motion in LINE_MOTIONS" :key="motion.id" :value="motion.id">{{ motion.label }}</option>
+              </select>
+            </label>
+            <label v-if="binding.action === 'dialog_next'" class="toggle setting-toggle">
+              <input type="checkbox" :checked="binding.yield_next !== false" :aria-label="`Laufende Zeile nicht unterbrechen ${gestureLabel}`" @change="store.patchGesture(selected.id, selected.gesture, { yield_next: ($event.target as HTMLInputElement).checked })" />
+              <span class="toggle-ui" aria-hidden="true"></span>
+              <span>Laufende Zeile nicht unterbrechen</span>
             </label>
             <label v-if="binding.action === 'motion'" class="field">
               <span>Bewegung</span>

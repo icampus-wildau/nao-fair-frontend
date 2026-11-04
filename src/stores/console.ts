@@ -505,6 +505,7 @@ export const useConsole = defineStore("console", () => {
       for (const trigger of Object.values(interactionDraft.value.triggers)) {
         for (const binding of [trigger.tap, trigger.double_tap, trigger.long_press]) {
           if (binding.action === "speak" && !binding.phrase.trim()) return "Text sprechen braucht einen Wortlaut."
+          if (binding.action === "speak" && binding.delivery === "motion" && !binding.motion) return "Mit Bewegung braucht eine Bewegung."
         }
       }
       const names = interactionDraft.value.dialogs.map((dialog) => dialog.name.trim())
@@ -618,8 +619,13 @@ export const useConsole = defineStore("console", () => {
     if (!interactionDraft.value) return
     const current = interactionDraft.value.triggers[id][gesture]
     const next = { ...current, ...patch, voice: null }
+    if (!next.delivery) next.delivery = "plain"
+    if (next.yield_next == null) next.yield_next = true
     if (patch.action === "motion" && !next.motion) next.motion = "wave_left"
-    if ("action" in patch && patch.action !== "motion") next.motion = null
+    if ("action" in patch && patch.action !== "motion" && !(patch.action === "speak" && next.delivery === "motion")) next.motion = null
+    if (patch.delivery && patch.delivery !== "motion") next.motion = null
+    const accompanying = next.motion === "wave_left" || next.motion === "wave_right" || next.motion === "nod" || next.motion === "shake"
+    if ((patch.delivery === "motion" || (patch.action === "speak" && next.delivery === "motion")) && !accompanying) next.motion = "nod"
     interactionDraft.value = {
       ...interactionDraft.value,
       triggers: {
@@ -661,13 +667,13 @@ export const useConsole = defineStore("console", () => {
   function stopConversation() {
     return run(() => api.stopConversation(), "Gespräch beendet.")
   }
-  function speak(text: string, actionKey?: string) {
+  function speak(text: string, actionKey?: string, delivery?: GestureBinding["delivery"], motion?: string | null) {
     const phrase = text.trim()
     if (!phrase) {
       setFeedback(false, "Der Text ist leer.")
       return
     }
-    return run(() => api.speak(phrase, actionKey), "")
+    return run(() => api.speak(phrase, actionKey, delivery, motion), "")
   }
   function stopSpeech() {
     return run(() => api.stopSpeech(), "Sprechen wurde gestoppt.")
@@ -679,17 +685,18 @@ export const useConsole = defineStore("console", () => {
     return run(() => api.stopMotion(), "Bewegung gestoppt.")
   }
 
-  async function testGesture(id: TriggerId, gesture: GestureId, source?: Pick<GestureBinding, "action" | "phrase" | "motion">) {
+  async function testGesture(id: TriggerId, gesture: GestureId, source?: Pick<GestureBinding, "action" | "phrase" | "motion" | "delivery" | "yield_next">) {
     const binding = source ?? interactionDraft.value?.triggers[id]?.[gesture]
     if (!binding?.action) {
       setFeedback(false, "Diesem Auslöser ist keine Aktion zugeordnet.")
       return
     }
-    if (binding.action === "dialog_next" || binding.action === "dialog_repeat" || binding.action === "dialog_previous") {
+    const action = binding.action
+    if (action === "dialog_next" || action === "dialog_repeat" || action === "dialog_previous" || action === "dialog_reset") {
       if (!requireHardware()) return
-      return run(() => api.dialogTest(binding.action as "dialog_next" | "dialog_repeat" | "dialog_previous"), "")
+      return run(() => api.dialogTest(action, { yieldNext: binding.yield_next !== false, phrase: binding.phrase }), "")
     }
-    if (binding.action === "speak") return speak(binding.phrase, `trigger:${id}:${gesture}`)
+    if (binding.action === "speak") return speak(binding.phrase, `trigger:${id}:${gesture}`, binding.delivery ?? "plain", binding.motion)
     if (binding.action === "stop_speech") return stopSpeech()
     if (binding.action === "start_conversation") return startConversation()
     if (binding.action === "stop_conversation") return stopConversation()

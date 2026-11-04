@@ -52,16 +52,19 @@ const DEFAULT_RANGES: Record<TimingKey, TimingRange> = {
 }
 
 export function emptyGesture(enabled = true): GestureBinding {
-  return { action: null, phrase: "", voice: null, motion: null, enabled }
+  return { action: null, phrase: "", voice: null, motion: null, enabled, delivery: "plain", yield_next: true }
 }
 
 export function gestureFrom(raw: Partial<GestureBinding> | undefined): GestureBinding {
+  const delivery = raw?.delivery === "motion" || raw?.delivery === "animated" ? raw.delivery : "plain"
   return {
     action: raw?.action ? raw.action : null,
     phrase: raw?.phrase ?? "",
     voice: null,
     motion: raw?.motion ?? null,
     enabled: raw?.enabled !== false,
+    delivery,
+    yield_next: raw?.yield_next !== false,
   }
 }
 

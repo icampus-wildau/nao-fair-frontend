@@ -17,7 +17,7 @@ function chosen(row: TriggerRowView, gesture: GestureId) {
 function gestures(row: TriggerRowView): GestureRowView[] {
   const source = props.bindings?.[row.id]
   const rows = source
-    ? row.gestures.map((gesture) => ({ ...gesture, action: source[gesture.id]?.action ?? null, motion: source[gesture.id]?.motion ?? null, enabled: source[gesture.id]?.enabled !== false, phrase: source[gesture.id]?.phrase ?? "" }))
+    ? row.gestures.map((gesture) => ({ ...gesture, action: source[gesture.id]?.action ?? null, motion: source[gesture.id]?.motion ?? null, enabled: source[gesture.id]?.enabled !== false, phrase: source[gesture.id]?.phrase ?? "", delivery: source[gesture.id]?.delivery === "motion" || source[gesture.id]?.delivery === "animated" ? source[gesture.id].delivery : "plain", yield_next: source[gesture.id]?.yield_next !== false }))
     : row.gestures
   return props.dashboard ? rows.filter((gesture) => gesture.enabled && gesture.action) : rows
 }
@@ -47,7 +47,7 @@ function openAssignment(row: TriggerRowView, gesture: GestureId) {
 }
 function playGesture(row: TriggerRowView, gesture: GestureRowView) {
   if (!store.view.hardwareEnabled || !gesture.action) return
-  void store.testGesture(row.id, gesture.id, { action: gesture.action, motion: gesture.motion, phrase: gesture.phrase })
+  void store.testGesture(row.id, gesture.id, { action: gesture.action, motion: gesture.motion, phrase: gesture.phrase, delivery: gesture.delivery, yield_next: gesture.yield_next })
 }
 </script>
 <template>

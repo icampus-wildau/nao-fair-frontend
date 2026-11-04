@@ -44,6 +44,7 @@ export const ACTION_LABELS: Record<string, string> = {
   dialog_next: "Nächste Zeile",
   dialog_repeat: "Zeile wiederholen",
   dialog_previous: "Vorherige Zeile",
+  dialog_reset: "Dialog zurücksetzen",
   wave: "Winken",
   nod: "Nicken",
   shake: "Kopf schütteln",
@@ -76,6 +77,7 @@ export const ACTION_GROUPS: { label: string; options: { id: string; label: strin
       { id: "dialog_next", label: ACTION_LABELS.dialog_next },
       { id: "dialog_repeat", label: ACTION_LABELS.dialog_repeat },
       { id: "dialog_previous", label: ACTION_LABELS.dialog_previous },
+      { id: "dialog_reset", label: ACTION_LABELS.dialog_reset },
     ],
   },
   {

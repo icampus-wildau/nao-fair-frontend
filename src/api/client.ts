@@ -288,11 +288,17 @@ export const api = {
   startConversation: () => request<unknown>("/api/conversation/start", { method: "POST" }),
   stopConversation: () => request<unknown>("/api/conversation/stop", { method: "POST" }),
   stopAndClear: () => request<unknown>("/api/conversation/stop-and-clear", { method: "POST" }),
-  speak: (text: string, actionKey?: string) => request<unknown>("/api/speech/speak", { method: "POST", body: JSON.stringify(actionKey ? { text, action_key: actionKey } : { text }) }),
+  speak: (text: string, actionKey?: string, delivery?: "plain" | "motion" | "animated", motion?: string | null) => {
+    const body: { text: string; action_key?: string; delivery?: string; motion?: string } = { text }
+    if (actionKey) body.action_key = actionKey
+    if (delivery && delivery !== "plain") body.delivery = delivery
+    if (delivery === "motion" && motion) body.motion = motion
+    return request<unknown>("/api/speech/speak", { method: "POST", body: JSON.stringify(body) })
+  },
   stopSpeech: () => request<unknown>("/api/speech/stop", { method: "POST" }),
   executeMotion: (motion: string) => request<unknown>("/api/motions/execute", { method: "POST", body: JSON.stringify({ motion }) }),
   stopMotion: () => request<unknown>("/api/motions/stop", { method: "POST" }),
-  dialogTest: (action: "dialog_next" | "dialog_repeat" | "dialog_previous") => request<unknown>("/api/interactions/dialog-test", { method: "POST", body: JSON.stringify({ action }) }),
+  dialogTest: (action: "dialog_next" | "dialog_repeat" | "dialog_previous" | "dialog_reset", options?: { yieldNext?: boolean; phrase?: string }) => request<unknown>("/api/interactions/dialog-test", { method: "POST", body: JSON.stringify({ action, yield_next: options?.yieldNext !== false, phrase: options?.phrase ?? "" }) }),
   listContent: async () => asContent(await request<unknown>("/api/content")),
   createContent: async (input: { kind: ContentKind; name: string; markdown: string }) => {
     const created = asContent([await request<unknown>("/api/content", { method: "POST", body: JSON.stringify(input) })])

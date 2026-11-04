@@ -5,8 +5,8 @@ import { TRIGGER_IDS } from "./triggers"
 import type { Applied, Picture, ServerMessage, TriggerBinding } from "./types"
 
 function binding(action: string | null): TriggerBinding {
-  const gesture = { action, phrase: "", voice: null, motion: null, enabled: true }
-  const empty = { action: null, phrase: "", voice: null, motion: null, enabled: true }
+  const gesture = { action, phrase: "", voice: null, motion: null, enabled: true, delivery: "plain" as const, yield_next: true }
+  const empty = { action: null, phrase: "", voice: null, motion: null, enabled: true, delivery: "plain" as const, yield_next: true }
   return { tap: gesture, double_tap: empty, long_press: { ...empty } }
 }
 
