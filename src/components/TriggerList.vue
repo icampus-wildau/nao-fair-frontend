@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { bindingLabel, compareTriggerIds, type GestureId, type TriggerId } from '../model/triggers'
 import type { GestureRowView, TriggerRowView } from '../model/screen'
 import type { TriggerBinding } from '../model/types'
 import { useConsole } from '../stores/console'
 const props = defineProps<{ rows: TriggerRowView[]; selectable?: boolean; selected?: { id: TriggerId; gesture: GestureId } | null; bindings?: Partial<Record<TriggerId, TriggerBinding>>; dashboard?: boolean }>()
 const store = useConsole()
+const router = useRouter()
 const sortedRows = computed(() => [...props.rows].sort((a, b) => compareTriggerIds(a.id, b.id)))
 const emit = defineEmits<{ select: [{ id: TriggerId; gesture: GestureId }]; enable: [TriggerId, GestureId, boolean] }>()
 function chosen(row: TriggerRowView, gesture: GestureId) {
@@ -38,6 +40,10 @@ function onGestureKeydown(event: KeyboardEvent, row: TriggerRowView, gesture: Ge
   if (!props.selectable || (event.key !== 'Enter' && event.key !== ' ')) return
   event.preventDefault()
   selectGesture(row, gesture)
+}
+function openAssignment(row: TriggerRowView, gesture: GestureId) {
+  if (!props.dashboard) return
+  void router.push({ path: '/llm', query: { abschnitt: 'interactions', sensor: row.id, geste: gesture } })
 }
 function playGesture(row: TriggerRowView, gesture: GestureRowView) {
   if (!store.view.hardwareEnabled || !gesture.action) return
@@ -72,10 +78,10 @@ function playGesture(row: TriggerRowView, gesture: GestureRowView) {
           </div>
           <template v-else>
             <span class="sensor-name">{{ gesture.label }}</span>
-            <span v-if="gesture.action !== 'speak'" class="sensor-action">{{ bindingLabel(gesture.action, gesture.motion) }}</span>
+            <span v-if="gesture.action !== 'speak'" class="sensor-action" :title="dashboard ? 'Zuordnung in Interaktionen bearbeiten' : undefined" @dblclick.stop="openAssignment(row, gesture.id)">{{ bindingLabel(gesture.action, gesture.motion) }}</span>
           </template>
           <UTooltip v-if="gesture.action === 'speak'" :text="spokenText(gesture)" :delay-duration="600" :content="{ side: 'top' }">
-            <span class="sensor-phrase" :class="{ 'has-phrase': !!spokenPhrase(gesture) }" :aria-label="`Wortlaut für ${row.label}`">{{ spokenPreview(gesture) }}</span>
+            <span class="sensor-phrase" :class="{ 'has-phrase': !!spokenPhrase(gesture) }" :aria-label="`Wortlaut für ${row.label}`" :title="dashboard ? 'Zuordnung in Interaktionen bearbeiten' : undefined" @dblclick.stop="openAssignment(row, gesture.id)">{{ spokenPreview(gesture) }}</span>
           </UTooltip>
           <button v-if="gesture.action" type="button" class="gesture-play" data-hardware="test" :aria-label="`${row.label}, ${gesture.label} abspielen`" :title="store.view.hardwareEnabled ? `${gesture.label} abspielen` : 'Kein Roboter verbunden.'" :disabled="!store.view.hardwareEnabled" @click.stop="playGesture(row, gesture)" @keydown.stop>
             <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>

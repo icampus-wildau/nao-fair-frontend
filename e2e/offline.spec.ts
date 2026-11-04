@@ -86,6 +86,16 @@ test("a dialog is edited under Interaktionen and the dashboard lists only the en
   await expect(play).toBeDisabled()
   await expect(hand.locator("[data-gesture='double_tap']")).toHaveCount(0)
   await expect(hand.locator("[data-gesture='long_press']")).toHaveCount(0)
+  await hand.locator("[data-gesture='tap'] .sensor-action").dblclick()
+  await expect(page).toHaveURL(/\/llm\?abschnitt=interactions&sensor=right_hand&geste=tap$/)
+  await expect(page.locator("[data-trigger='right_hand'] [data-gesture='tap']")).toHaveClass(/is-selected/)
+  await expect(page.locator(".interaction-detail")).toContainText("Handrücken rechts")
+  await expect(page.locator(".interaction-detail")).toContainText("Tippen")
+  await expect(page.getByRole("button", { name: "Aktion Tippen", exact: true })).toHaveText("Nächste Zeile")
+  await page.goto("/roboter?abschnitt=sensoren")
+  await page.locator("[data-trigger='right_hand'] [data-gesture='tap'] .sensor-action").dblclick()
+  await expect(page.locator(".interaction-detail")).toContainText("Handrücken rechts")
+  await expect(page.getByRole("button", { name: "Aktion Tippen", exact: true })).toHaveText("Nächste Zeile")
 })
 
 test("a scenario stores the current combination and can be renamed and deleted", async ({ page, request }) => {

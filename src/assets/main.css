@@ -122,6 +122,8 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .gesture-play:focus-visible { outline: 2px solid var(--charcoal); outline-offset: -2px; }
 .gesture:has(.sensor-phrase) .gesture-play { margin-left: 0; }
 .trigger-list.is-overview .gesture { position: relative; }
+.trigger-list.is-overview .sensor-action,
+.trigger-list.is-overview .sensor-phrase { cursor: pointer; user-select: none; }
 .trigger-list.is-overview .gesture-play { position: absolute; left: 0; top: 0; width: 12px; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
 .trigger-list.is-overview .gesture:hover .gesture-play,
 .trigger-list.is-overview .gesture:focus-within .gesture-play { opacity: 1; pointer-events: auto; }

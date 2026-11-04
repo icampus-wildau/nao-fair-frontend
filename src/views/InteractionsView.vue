@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue"
+import { computed, nextTick, onUnmounted, ref, watch } from "vue"
+import { useRoute } from "vue-router"
 import InfoTip from "../components/InfoTip.vue"
 import TriggerList from "../components/TriggerList.vue"
-import { ACTION_GROUPS, ACTION_NONE, AUTOSTART_INFO, GESTURE_IDS, GESTURE_LABELS, MOTIONS, actionLabel, autostartHint, type GestureId, type TriggerId } from "../model/triggers"
+import { ACTION_GROUPS, ACTION_NONE, AUTOSTART_INFO, GESTURE_IDS, GESTURE_LABELS, MOTIONS, actionLabel, autostartHint, isGestureId, isTriggerId, type GestureId, type TriggerId } from "../model/triggers"
 import type { GestureRowView, TriggerRowView } from "../model/screen"
 import { useConsole } from "../stores/console"
 
 const store = useConsole()
+const route = useRoute()
 const selected = ref<{ id: TriggerId; gesture: GestureId }>({ id: "front_head", gesture: "tap" })
+let appliedLink = ""
 const menuOpen = ref(false)
 const detailOpen = ref(false)
 const picker = ref<HTMLElement | null>(null)
@@ -32,6 +35,23 @@ watch(rows, (available) => {
   const first = available[0]?.gestures[0]
   if (available[0] && first) selected.value = { id: available[0].id, gesture: first.id }
 }, { immediate: true })
+function focusFromRoute() {
+  const sensor = route.query.sensor
+  const gesture = route.query.geste
+  if (typeof sensor !== "string" || typeof gesture !== "string" || !isTriggerId(sensor) || !isGestureId(gesture)) return
+  const key = `${sensor}:${gesture}`
+  if (appliedLink === key) return
+  const row = rows.value.find((item) => item.id === sensor)
+  if (!row?.gestures.some((item) => item.id === gesture)) return
+  appliedLink = key
+  selected.value = { id: sensor, gesture }
+  detailOpen.value = true
+  menuOpen.value = false
+  void nextTick(() => {
+    document.querySelector(`[data-trigger="${sensor}"] [data-gesture="${gesture}"]`)?.scrollIntoView({ block: "nearest" })
+  })
+}
+watch(() => [route.query.sensor, route.query.geste, rows.value.map((row) => row.id).join(",")], focusFromRoute, { immediate: true })
 const binding = computed(() => store.interactionDraft?.triggers[selected.value.id]?.[selected.value.gesture] ?? null)
 const sensorLabel = computed(() => rows.value.find((row) => row.id === selected.value.id)?.label ?? "")
 const gestureLabel = computed(() => GESTURE_LABELS[selected.value.gesture])

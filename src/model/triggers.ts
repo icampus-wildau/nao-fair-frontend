@@ -120,6 +120,10 @@ export function isTriggerId(value: string): value is TriggerId {
   return (TRIGGER_IDS as readonly string[]).includes(value)
 }
 
+export function isGestureId(value: string): value is GestureId {
+  return (GESTURE_IDS as readonly string[]).includes(value)
+}
+
 export function actionLabel(action: string | null | undefined): string {
   if (!action) return "Keine Aktion"
   return ACTION_LABELS[action] ?? action
