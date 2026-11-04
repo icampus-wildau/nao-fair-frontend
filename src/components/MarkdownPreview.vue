@@ -1,7 +1,8 @@
 <script lang="ts">
 import { defineComponent, h, type VNodeChild } from 'vue'
 import { markdownLanguage } from '@codemirror/lang-markdown'
-import type { SyntaxNode } from '@lezer/common'
+
+type SyntaxNode = ReturnType<typeof markdownLanguage.parser.parse>['topNode']
 
 export default defineComponent({
   props: { text: { type: String, required: true } },
