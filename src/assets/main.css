@@ -469,6 +469,7 @@ a.tile { color: inherit; text-decoration: none; }
 .dialog-delivery { display: grid; gap: 4px; min-width: 0; }
 .dialog-delivery select { width: 100%; padding: 0 4px; }
 .dialog-line-actions { display: flex; gap: 4px; }
+.dialog-test-slot { width: 36px; min-width: 36px; }
 .dialog-move { position: relative; }
 .dialog-move summary { display: grid; place-items: center; list-style: none; width: 36px; min-height: 36px; border: 1px solid var(--control); cursor: pointer; font-size: 20px; }
 .dialog-move summary::-webkit-details-marker { display: none; }
@@ -493,7 +494,7 @@ a.tile { color: inherit; text-decoration: none; }
   .dialog-text { grid-column: 3; }
   .dialog-delivery, .dialog-line-actions { grid-column: 3; }
   .dialog-delivery { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
-  .dialog-line-actions .icon-btn, .dialog-move summary { min-height: 44px; width: 44px; }
+  .dialog-line-actions .icon-btn, .dialog-move summary, .dialog-test-slot { min-height: 44px; width: 44px; min-width: 44px; }
 }
 .dialog-line.is-drop-after { box-shadow: inset 0 -3px var(--charcoal); }
 .dialog-speaker-help { margin: 0 0 10px; }
@@ -503,8 +504,8 @@ a.tile { color: inherit; text-decoration: none; }
 .dialog-line .dialog-speaker { font-weight: 600; }
 .dialog-line.is-nao .dialog-speaker { border-color: #a9b989; }
 .dialog-line.is-human .dialog-speaker { border-color: #aab8bb; }
-.dialog-line { grid-template-columns: 24px 22px 88px minmax(120px, 1fr) minmax(145px, 180px) auto; }
-.dialog-speaker { width: 100%; padding: 0 4px; }
+.dialog-line { grid-template-columns: 24px 22px 88px minmax(120px, 1fr) 180px 156px; }
+.dialog-speaker { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: var(--control-h); padding: 0 8px; border: 1px solid var(--control); border-radius: var(--radius); background: #fff; white-space: nowrap; }
 .dialog-human-note { align-self: center; color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) {
   .dialog-line { grid-template-columns: 22px 20px minmax(0, 1fr); }

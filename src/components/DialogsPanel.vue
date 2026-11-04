@@ -3,6 +3,7 @@ import { computed, ref } from "vue"
 import { LINE_MOTIONS } from "../model/triggers"
 import type { Dialog, DialogDelivery, DialogLine } from "../model/types"
 import { useConsole } from "../stores/console"
+import LineSideButton from "./LineSideButton.vue"
 
 const store = useConsole()
 const selected = ref<string | null>(null)
@@ -199,7 +200,7 @@ function minutes(dialog: Dialog) {
     <div v-for="(line, index) in current.lines" :key="line.id" class="dialog-line" :class="{ 'is-human': line.speaker === 'human', 'is-nao': line.speaker !== 'human', 'is-drop-target': dropTarget === line.id && !dropAfter, 'is-drop-after': dropTarget === line.id && dropAfter, 'is-dragging': dragged === line.id }" @dragover.prevent="dragOver($event, line.id)" @dragleave="dropTarget = null" @drop.prevent="dropLine(line.id)">
       <span class="dialog-drag" draggable="true" title="Zeile ziehen, um sie zu verschieben" aria-hidden="true" @dragstart="dragStart($event, line.id)" @dragend="dragged = null; dropTarget = null">⠿</span>
       <span class="dialog-index">{{ index + 1 }}</span>
-      <select class="inline-select dialog-speaker" :aria-label="`Sprecher für Zeile ${index + 1}`" :value="line.speaker ?? 'nao'" @change="patchLine(line.id, { speaker: ($event.target as HTMLSelectElement).value as 'nao' | 'human' })"><option value="nao">NAO</option><option value="human">Mensch</option></select>
+      <LineSideButton :index="index + 1" :speaker="line.speaker" @change="patchLine(line.id, { speaker: $event })" />
       <textarea class="dialog-text" rows="1" :value="line.text" :aria-label="`Zeile ${index + 1}`" placeholder="Text eingeben" @input="patchLine(line.id, { text: ($event.target as HTMLTextAreaElement).value })"></textarea>
       <div v-if="(line.speaker ?? 'nao') === 'nao'" class="dialog-delivery">
         <select class="inline-select" :aria-label="`Wiedergabe für Zeile ${index + 1}`" :value="line.delivery" @change="patchLine(line.id, { delivery: ($event.target as HTMLSelectElement).value as DialogDelivery })"><option value="plain">Nur sprechen</option><option value="motion">Mit Bewegung</option><option value="animated">Animiertes Sprechen</option></select>
@@ -208,6 +209,7 @@ function minutes(dialog: Dialog) {
       <span v-else class="dialog-human-note">Nur zur Planung</span>
       <div class="dialog-line-actions">
         <button v-if="line.speaker !== 'human'" type="button" class="btn icon-btn" :aria-label="`Text von Zeile ${index + 1} testen`" :title="!store.view.hardwareEnabled ? 'Roboter verbinden, um den Text zu testen' : !line.text.trim() ? 'Zuerst Text eingeben' : 'Text sprechen (ohne Bewegung)'" :disabled="!store.view.hardwareEnabled || !line.text.trim() || testingLine !== null" @click="testLine(line)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z"/><path d="M17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg></button>
+        <span v-else class="dialog-test-slot" aria-hidden="true"></span>
         <button type="button" class="btn icon-btn" :aria-label="`Zeile unter ${index + 1} einfügen`" title="Darunter einfügen" @click="addLine(line.id)">＋</button>
         <button type="button" class="btn-danger icon-btn" :aria-label="`Zeile ${index + 1} löschen`" title="Zeile löschen" @click="removeLine(line, index)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M8 7l1 13h6l1-13" /></svg></button>
         <details class="dialog-move"><summary :aria-label="`Zeile ${index + 1} verschieben`" title="Zeile verschieben">⋯</summary><div><button type="button" :disabled="index === 0" @click="moveLine(line.id, -1)">Nach oben</button><button type="button" :disabled="index === current.lines.length - 1" @click="moveLine(line.id, 1)">Nach unten</button></div></details>
