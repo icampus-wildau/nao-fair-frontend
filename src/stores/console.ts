@@ -11,6 +11,7 @@ import {
   type ProgramReport,
 } from "../api/client"
 import {
+  acceptAppliedDraft,
   addressEdited,
   addressFromPicture,
   addressUsedForConnect,
@@ -92,7 +93,11 @@ export const useConsole = defineStore("console", () => {
   const recovery = ref<Record<string, unknown> | null>(null)
   let recoveryChecked = false
   const draftBackupEnabled = ref(readLocal("draft-backup-enabled", true))
-  const localApply = ref(false)
+  type PendingApply =
+    | { screen: "robot"; sent: RobotDraft }
+    | { screen: "llm"; sent: LlmDraft }
+    | { screen: "interactions"; sent: InteractionsDraft }
+  const localApply = ref<PendingApply | null>(null)
   const applying = ref(false)
   const audioState = ref<Record<"volume" | "speech_speed", "" | "saving" | "saved" | "error">>({ volume: "", speech_speed: "" })
   let socket: WebSocket | null = null
@@ -176,7 +181,7 @@ export const useConsole = defineStore("console", () => {
     knownRobots.value = asKnownRobots(value)
   }
 
-  function syncDrafts(previous: Applied | null, originated: boolean) {
+  function syncDrafts(previous: Applied | null, originated: boolean, pending: PendingApply | null = null) {
     const next = screen.value.applied
     if (!next) return
     const dirty =
@@ -197,9 +202,18 @@ export const useConsole = defineStore("console", () => {
         }
         return result
       }
-      robotDraft.value = rebase(robotDraft.value, robotDraftFrom(previous), robotDraftFrom(next))
-      llmDraft.value = rebase(llmDraft.value, llmDraftFrom(previous), llmDraftFrom(next))
-      interactionDraft.value = rebase(interactionDraft.value, interactionsDraftFrom(previous), interactionsDraftFrom(next))
+      const robotApplied = robotDraftFrom(next)
+      const llmApplied = llmDraftFrom(next)
+      const interactionsApplied = interactionsDraftFrom(next)
+      robotDraft.value = pending?.screen === "robot"
+        ? acceptAppliedDraft(robotDraft.value, pending.sent, robotApplied)
+        : rebase(robotDraft.value, robotDraftFrom(previous), robotApplied)
+      llmDraft.value = pending?.screen === "llm"
+        ? acceptAppliedDraft(llmDraft.value, pending.sent, llmApplied)
+        : rebase(llmDraft.value, llmDraftFrom(previous), llmApplied)
+      interactionDraft.value = pending?.screen === "interactions"
+        ? acceptAppliedDraft(interactionDraft.value, pending.sent, interactionsApplied)
+        : rebase(interactionDraft.value, interactionsDraftFrom(previous), interactionsApplied)
       if (originated) notice.value = null
       else if (dirty && Object.keys(next).some((key) => !["revision", "volume", "speech_speed"].includes(key) && !sameJson(previous[key as keyof Applied], next[key as keyof Applied])) && (robotDirty.value || llmDirty.value || interactionDirty.value)) notice.value = NOTICE_EXTERNAL_APPLY
     }
@@ -208,7 +222,8 @@ export const useConsole = defineStore("console", () => {
   function ingest(message: ServerMessage) {
     if ((message.type === "picture" || message.type === "config.applied") && !message.applied) return
     const previous = screen.value.applied
-    const originated = localApply.value
+    const pending = localApply.value
+    const originated = pending !== null
     screen.value = reduce(screen.value, message)
     if (message.type === "sensor.pressed" && isTriggerId(message.sensor_id)) {
       schedulePressFlashClear(message.sensor_id)
@@ -230,8 +245,7 @@ export const useConsole = defineStore("console", () => {
       void loadSystem()
       if (message.connection.state === "connected") void loadPrograms()
     } else if (message.type === "config.applied") {
-      localApply.value = false
-      syncDrafts(previous, originated)
+      syncDrafts(previous, originated, pending)
       void loadAppliedContent()
       void loadSystem()
     } else if (message.type === "connection.changed") {
@@ -555,8 +569,8 @@ export const useConsole = defineStore("console", () => {
     const draft = screenName === "robot" ? robotDraft.value : screenName === "llm" ? llmDraft.value : interactionDraft.value
     if (!draft) return
     applying.value = true
-    localApply.value = true
     try {
+      localApply.value = { screen: screenName, sent: JSON.parse(JSON.stringify(draft)) } as PendingApply
       const body = await api.apply(screenName, draft, applied.revision)
       const next = asApplied(body)
       if (next) {
@@ -566,11 +580,12 @@ export const useConsole = defineStore("console", () => {
           active_setup_id: asActiveSetupId(body) ?? screen.value.activeSetupId,
         })
       }
+      localApply.value = null
       if (screenName === "llm") await loadAppliedContent()
       setFeedback(true, "Übernommen.")
       return true
     } catch (error) {
-      localApply.value = false
+      localApply.value = null
       setFeedback(false, errorText(error))
       return false
     } finally {

@@ -1,4 +1,4 @@
-import { interactionsDraftFrom, llmDraftFrom } from "./drafts"
+import { interactionsDraftFrom, llmDraftFrom, sameJson } from "./drafts"
 import type { InteractionsDraft, LlmDraft } from "./drafts"
 import type { Applied, Dialog, TriggerBinding } from "./types"
 
@@ -25,7 +25,7 @@ export function combinationFromApplied(applied: Applied) {
 }
 
 export function sameCombination(left: object, right: object): boolean {
-  return stable(left) === stable(right)
+  return sameJson(left, right)
 }
 
 export function mappingCount(triggers: Record<string, TriggerBinding>): number {
@@ -43,19 +43,4 @@ export function scenarioBadges(selected: boolean, matchesScenario: boolean, matc
 export function loadWouldLoseEdits(input: { selected: boolean; sectionsMatchSelection: boolean; sectionsMatchApplied: boolean; nameDirty: boolean }): boolean {
   if (input.selected) return !input.sectionsMatchSelection || input.nameDirty
   return !input.sectionsMatchApplied || input.nameDirty
-}
-
-function stable(value: unknown): string {
-  return JSON.stringify(sortKeys(value))
-}
-
-function sortKeys(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeys)
-  if (value && typeof value === "object") {
-    return Object.keys(value).sort().reduce<Record<string, unknown>>((acc, key) => {
-      acc[key] = sortKeys((value as Record<string, unknown>)[key])
-      return acc
-    }, {})
-  }
-  return value
 }

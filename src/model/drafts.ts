@@ -133,7 +133,56 @@ export function interactionsDraftFrom(applied: Applied): InteractionsDraft {
 }
 
 export function sameJson(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
+  return JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b))
+}
+
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeys)
+  if (value && typeof value === "object") {
+    return Object.keys(value).sort().reduce<Record<string, unknown>>((acc, key) => {
+      acc[key] = sortKeys((value as Record<string, unknown>)[key])
+      return acc
+    }, {})
+  }
+  return value
+}
+
+/** Dialog names are stored trimmed, and line fields come back in server order. */
+function comparableDialogs(value: unknown): unknown {
+  if (!Array.isArray(value)) return value
+  return value.map((item) => {
+    if (!item || typeof item !== "object") return item
+    const dialog = item as Partial<Dialog>
+    const lines = Array.isArray(dialog.lines) ? dialog.lines.map((line) => {
+      const delivery = line?.delivery === "motion" || line?.delivery === "animated" ? line.delivery : "plain"
+      return {
+        speaker: line?.speaker === "human" ? "human" : "nao",
+        id: line?.id ?? "",
+        text: line?.text ?? "",
+        delivery,
+        motion: delivery === "motion" ? line?.motion ?? null : null,
+      }
+    }) : []
+    return {
+      id: dialog.id ?? "",
+      name: typeof dialog.name === "string" ? dialog.name.trim() : "",
+      wrap: dialog.wrap === true,
+      idle_reset_secs: dialog.idle_reset_secs ?? null,
+      lines,
+    }
+  })
+}
+
+export function acceptAppliedDraft<T extends object>(current: T, sent: T, applied: T): T {
+  const result = { ...current }
+  for (const key of Object.keys(applied) as (keyof T)[]) {
+    const unchangedSinceSend = sameJson(current[key], sent[key])
+    const stored = String(key) === "dialogs"
+      ? sameJson(comparableDialogs(sent[key]), comparableDialogs(applied[key]))
+      : sameJson(sent[key], applied[key])
+    if (unchangedSinceSend && stored) result[key] = applied[key]
+  }
+  return result
 }
 
 export function changedKeys(a: object, b: object): string[] {

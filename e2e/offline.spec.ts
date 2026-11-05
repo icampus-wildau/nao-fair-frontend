@@ -72,6 +72,10 @@ test("a dialog is edited under Interaktionen and the dashboard lists only the en
   await page.getByRole("option", { name: "Nächste Zeile", exact: true }).click()
   await page.getByRole("button", { name: "Übernehmen", exact: true }).click()
   await expect(page.getByText("Übernommen.", { exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Offene Änderungen" })).toHaveCount(0)
+  await expect.poll(async () => page.evaluate(() => localStorage.getItem("nao-fair.draft-backup"))).toBeNull()
+  await page.reload()
+  await expect(page.getByRole("region", { name: "Entwurf wiederherstellen" })).toHaveCount(0)
   const applied = (await (await request.get("/api/config/applied")).json()).applied
   expect(applied.active_dialog_id).toBeTruthy()
   expect(applied.dialogs[0].lines.map((line: { text: string }) => line.text)).toEqual(["Erster Satz", "Zweiter Satz"])

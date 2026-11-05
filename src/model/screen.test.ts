@@ -68,6 +68,19 @@ function feed(state: ScreenState, ...messages: ServerMessage[]): ScreenState {
 }
 
 describe("screen model", () => {
+  it("keeps the conversation state when the robot changes the autostart switch", () => {
+    const state = reduce(initialScreen(), picture({
+      connection: { state: "connected", address: "10.0.0.8", name: "NAO", failure: null },
+      conversation_state: "listening",
+      transcript: [],
+    }))
+    const updated = reduce(state, {
+      type: "config.applied", applied: { ...applied(), autostart_enabled: false }, active_setup_id: null,
+    })
+    expect(viewOf(updated).conversationState).toBe("listening")
+    expect(updated.applied?.autostart_enabled).toBe(false)
+  })
+
   it("starts from a disconnected picture at idle, with hardware off and no press", () => {
     const state = reduce(
       initialScreen(),

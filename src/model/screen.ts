@@ -153,7 +153,6 @@ export function reduce(state: ScreenState, message: ServerMessage): ScreenState 
         ...state,
         applied: normalizeApplied(message.applied),
         activeSetupId: message.active_setup_id,
-        conversationState: "idle",
       }
     case "action.completed":
       return { ...state, lastAction: { action: message.action, ok: true, error: null } }
