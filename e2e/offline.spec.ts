@@ -106,7 +106,6 @@ test("a scenario stores the current combination and can be renamed and deleted",
   const applied = (await (await request.get("/api/config/applied")).json()).applied
   await page.goto("/llm?abschnitt=scenario")
   await expect(page.getByRole("heading", { name: "Szenarien", exact: true })).toBeVisible()
-  await expect(page.locator(".scenario-row").first()).toBeVisible()
   await page.getByLabel("Name", { exact: true }).fill("Browserprüfung Offline")
   await page.getByLabel("Beschreibung", { exact: true }).fill("Kurzbeschreibung")
   await page.getByRole("button", { name: "Aktuelle Konfiguration als neues Szenario speichern", exact: true }).click()

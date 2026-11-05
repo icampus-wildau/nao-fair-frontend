@@ -1,5 +1,10 @@
 # Umgesetzte UX-Punkte, zweite Runde am 29. Oktober 2026
 
+> Historischer Umsetzungs- und Prüfbericht, keine Beschreibung des heutigen Stands.
+> Setup/Presets und die damalige Navigation wurden später abgelöst. Aktuelle
+> Anforderungen stehen in [requirements.md](../requirements.md); die Prüfergebnisse
+> unten beziehen sich ausschließlich auf diese Runde.
+
 Ausgangspunkt ist die UX-Nachbetrachtung mit 24 Vorschlägen. Die Ergänzungen zur Preset-Verwaltung, zum System-Tab, zu Vergleichen hinter Info-Icons und zur alphabetischen Sortierung sind berücksichtigt.
 
 | Punkt | Umsetzung |
@@ -44,4 +49,5 @@ Ausgangspunkt ist die UX-Nachbetrachtung mit 24 Vorschlägen. Die Ergänzungen z
 - Laufender regulärer Dienst auf Port 8000 und Frontend-Proxy auf Port 5173: System-Endpunkt mit API-Version 2 und Audio-Änderung jeweils HTTP 200.
 - Hardware- und Cloudabläufe mit Testtreiber bzw. Adaptertests geprüft; kein echter NAO in diesem Prüflauf.
 
-Die visuelle Prüfung mit Screenshots und begründeten Layoutwarnungen steht in `../../.taste-skill/round-2/REPORT.md`.
+Die visuelle Prüfung lag lokal in `.taste-skill/round-2/REPORT.md`; diese
+Arbeitsartefakte gehören nicht zur versionierten Frontend-Dokumentation.

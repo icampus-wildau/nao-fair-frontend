@@ -203,7 +203,8 @@ export function asScenarios(body: unknown): Scenario[] {
     if (!item || typeof item !== "object") return []
     const record = item as Record<string, unknown>
     if (typeof record.id !== "string" || typeof record.llm_model !== "string" || typeof record.system_prompt_id !== "string") return []
-    if (typeof record.local_context_id !== "string" || typeof record.personality_id !== "string") return []
+    if (record.local_context_id !== null && typeof record.local_context_id !== "string") return []
+    if (typeof record.personality_id !== "string") return []
     if (!Array.isArray(record.knowledge_ids) || !Array.isArray(record.tts_replacements) || !Array.isArray(record.stt_vocabulary)) return []
     if (!record.triggers || typeof record.triggers !== "object") return []
     return [{ ...(record as unknown as Scenario), id: record.id, name: text(record.name, "Ohne Namen"), description: text(record.description) }]

@@ -40,6 +40,15 @@ Under **System → Tests**, **Mikrofontest starten** runs the applied pipeline w
 
 Requirements are the server's [browser pipeline packages](https://github.com/icampus-wildau/nao-fair-server#test-the-conversation-without-a-nao), the API keys, and microphone permission on localhost or HTTPS.
 
+## Development documentation
+
+[requirements.md](requirements.md) describes the current four main areas and
+Studio workflow; [AGENTS.md](AGENTS.md) points to implementation boundaries.
+The server owns the shared [glossary](https://github.com/icampus-wildau/nao-fair-server/blob/main/GLOSSARY.md),
+[behavior rules](https://github.com/icampus-wildau/nao-fair-server/blob/main/docs/behavior.md),
+and [decisions](https://github.com/icampus-wildau/nao-fair-server/tree/main/docs/adr).
+Dated reports under `docs/` are historical UX evidence.
+
 ## Checks
 
 ```bash
